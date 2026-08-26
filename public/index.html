@@ -1,89 +1,161 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Welcome to Firebase Hosting</title>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>TAZAWWUD | Your Provision for Every Day</title>
+  <meta name="description" content="TAZAWWUD — Qur'an, Sunnah, Salah, and daily Islamic guidance. Your provision for every day." />
 
-    <!-- update the version number as needed -->
-    <script defer src="/__/firebase/12.18.0/firebase-app-compat.js"></script>
-    <!-- include only the Firebase features as you need -->
-    <script defer src="/__/firebase/12.18.0/firebase-auth-compat.js"></script>
-    <script defer src="/__/firebase/12.18.0/firebase-database-compat.js"></script>
-    <script defer src="/__/firebase/12.18.0/firebase-firestore-compat.js"></script>
-    <script defer src="/__/firebase/12.18.0/firebase-functions-compat.js"></script>
-    <script defer src="/__/firebase/12.18.0/firebase-messaging-compat.js"></script>
-    <script defer src="/__/firebase/12.18.0/firebase-storage-compat.js"></script>
-    <script defer src="/__/firebase/12.18.0/firebase-analytics-compat.js"></script>
-    <script defer src="/__/firebase/12.18.0/firebase-remote-config-compat.js"></script>
-    <script defer src="/__/firebase/12.18.0/firebase-performance-compat.js"></script>
-    <!-- 
-      initialize the SDK after all desired features are loaded, set useEmulator to false
-      to avoid connecting the SDK to running emulators.
-    -->
-    <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+  <!-- PWA Meta -->
+  <meta name="theme-color" content="#0F5C4A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TAZAWWUD" />
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
 
-    <style media="screen">
-      body { background: #ECEFF1; color: rgba(0,0,0,0.87); font-family: Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; }
-      #message { background: white; max-width: 360px; margin: 100px auto 16px; padding: 32px 24px; border-radius: 3px; }
-      #message h2 { color: #ffa100; font-weight: bold; font-size: 16px; margin: 0 0 8px; }
-      #message h1 { font-size: 22px; font-weight: 300; color: rgba(0,0,0,0.6); margin: 0 0 16px;}
-      #message p { line-height: 140%; margin: 16px 0 24px; font-size: 14px; }
-      #message a { display: block; text-align: center; background: #039be5; text-transform: uppercase; text-decoration: none; color: white; padding: 16px; border-radius: 4px; }
-      #message, #message a { box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
-      #load { color: rgba(0,0,0,0.4); text-align: center; font-size: 13px; }
-      @media (max-width: 600px) {
-        body, #message { margin-top: 0; background: white; box-shadow: none; }
-        body { border-top: 16px solid #ffa100; }
-      }
-    </style>
-  </head>
-  <body>
-    <div id="message">
-      <h2>Welcome</h2>
-      <h1>Firebase Hosting Setup Complete</h1>
-      <p>You're seeing this because you've successfully setup Firebase Hosting. Now it's time to go build something extraordinary!</p>
-      <a target="_blank" href="https://firebase.google.com/docs/hosting/">Open Hosting Documentation</a>
+  <!-- Google Fonts: Inter (English) & Noto Naskh Arabic (Arabic) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Icons: Material Symbols Rounded (free, CDN, variable font — no npm) -->
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..600,0..1,-25..0&display=block"
+  />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Skip link for accessibility -->
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header" role="banner">
+    <div class="container site-header__inner">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">﷽</span>
+        <div class="brand__text">
+          <h1 class="brand__name">
+            TAZAWWUD <span class="brand__name-ar" lang="ar" dir="rtl">تَزَوُّد</span>
+          </h1>
+          <p class="brand__tagline">Your provision for every day.</p>
+        </div>
+      </div>
+
+      <nav class="site-nav" aria-label="Primary">
+        <ul class="site-nav__list">
+          <li><a href="#" class="site-nav__link is-active">Home</a></li>
+          <li><a href="#" class="site-nav__link">Qur'an</a></li>
+          <li><a href="#" class="site-nav__link">Sunnah</a></li>
+          <li><a href="#" class="site-nav__link">Salah</a></li>
+        </ul>
+      </nav>
     </div>
-    <p id="load">Firebase SDK Loading&hellip;</p>
 
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const loadEl = document.querySelector('#load');
-        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
-        // // The Firebase SDK is initialized and available here!
-        //
-        // firebase.auth().onAuthStateChanged(user => { });
-        // firebase.database().ref('/path/to/ref').on('value', snapshot => { });
-        // firebase.firestore().doc('/foo/bar').get().then(() => { });
-        // firebase.functions().httpsCallable('yourFunction')().then(() => { });
-        // firebase.messaging().requestPermission().then(() => { });
-        // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
-        // firebase.analytics(); // call to activate
-        // firebase.analytics().logEvent('tutorial_completed');
-        // firebase.performance(); // call to activate
-        //
-        // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
+    <p class="brand__subtitle container">Qur'an • Sunnah • Salah • Daily Guidance</p>
+  </header>
 
-        try {
-          let app = firebase.app();
-          let features = [
-            'auth', 
-            'database', 
-            'firestore',
-            'functions',
-            'messaging', 
-            'storage', 
-            'analytics', 
-            'remoteConfig',
-            'performance',
-          ].filter(feature => typeof app[feature] === 'function');
-          loadEl.textContent = `Firebase SDK loaded with ${features.join(', ')}`;
-        } catch (e) {
-          console.error(e);
-          loadEl.textContent = 'Error loading the Firebase SDK, check the console.';
-        }
+  <main id="main-content" class="container main-content" role="main">
+    <section class="hero" aria-labelledby="hero-heading">
+      <p class="hero__ayah" lang="ar" dir="rtl">
+        وَتَزَوَّدُوا فَإِنَّ خَيْرَ الزَّادِ التَّقْوَىٰ
+      </p>
+      <p class="hero__ayah-translation">
+        "Take provisions, for indeed, the best provision is Taqwa." — Al-Baqarah 2:197
+      </p>
+      <h2 id="hero-heading" class="hero__heading">Foundation is loading…</h2>
+      <p class="hero__note">
+        This is the Phase 2 application shell for TAZAWWUD. Core features (Qur'an, Sunnah,
+        Salah times, and Daily Guidance) will be built on top of this foundation.
+      </p>
+    </section>
+
+    <section id="app-root" class="app-root" aria-live="polite">
+      <!-- Dynamic feature modules will mount here in later phases -->
+    </section>
+
+    <!-- ================================================================
+         ICON SHOWCASE (Phase 3 demo — safe to delete once features land)
+         Material Symbols Rounded for standard glyphs;
+         custom sprite (/icons/custom-icons.svg) for Salah, Kaaba, Tasbih.
+         ================================================================ -->
+    <section class="icon-showcase" aria-labelledby="icon-showcase-heading">
+      <h2 id="icon-showcase-heading" class="icon-showcase__heading">Icon Library — Phase 3</h2>
+
+      <div class="icon-grid">
+        <div class="icon-card"><span class="material-symbols-rounded icon">bookmark</span><span>Bookmark</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">favorite</span><span>Favorite</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">search</span><span>Search</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">settings</span><span>Settings</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">download</span><span>Download</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">play_arrow</span><span>Play</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">pause</span><span>Pause</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">volume_up</span><span>Volume</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">share</span><span>Share</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">calendar_month</span><span>Calendar</span></div>
+        <div class="icon-card"><svg class="icon icon--custom" aria-hidden="true"><use href="/icons/custom-icons.svg#icon-tasbih"></use></svg><span>Tasbih</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">nights_stay</span><span>Moon</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">mosque</span><span>Mosque</span></div>
+        <div class="icon-card"><svg class="icon icon--custom" aria-hidden="true"><use href="/icons/custom-icons.svg#icon-kaaba"></use></svg><span>Kaaba</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">explore</span><span>Compass</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">notifications</span><span>Notification</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">arrow_back</span><span>Back</span></div>
+        <div class="icon-card"><span class="material-symbols-rounded icon">close</span><span>Close</span></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================================================================
+       BOTTOM NAVIGATION (mobile app-shell pattern)
+       ================================================================ -->
+  <nav class="bottom-nav" aria-label="Bottom navigation">
+    <a href="#" class="bottom-nav__item is-active">
+      <span class="material-symbols-rounded icon">home</span>
+      <span class="bottom-nav__label">Home</span>
+    </a>
+    <a href="#" class="bottom-nav__item">
+      <span class="material-symbols-rounded icon">menu_book</span>
+      <span class="bottom-nav__label">Qur'an</span>
+    </a>
+    <a href="#" class="bottom-nav__item">
+      <span class="material-symbols-rounded icon">history_edu</span>
+      <span class="bottom-nav__label">Hadith</span>
+    </a>
+    <a href="#" class="bottom-nav__item">
+      <svg class="icon icon--custom" aria-hidden="true"><use href="/icons/custom-icons.svg#icon-salah"></use></svg>
+      <span class="bottom-nav__label">Salah</span>
+    </a>
+    <a href="#" class="bottom-nav__item">
+      <span class="material-symbols-rounded icon">explore</span>
+      <span class="bottom-nav__label">Qiblah</span>
+    </a>
+  </nav>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; <span id="year"></span> TAZAWWUD. Built for the Ummah, free for everyone.</p>
+    </div>
+  </footer>
+
+  <!-- App entry point (ES Module) -->
+  <script type="module" src="/js/app.js"></script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register('/sw.js')
+          .then((reg) => console.log('[TAZAWWUD] Service worker registered:', reg.scope))
+          .catch((err) => console.error('[TAZAWWUD] Service worker registration failed:', err));
       });
-    </script>
-  </body>
+    }
+  </script>
+</body>
 </html>

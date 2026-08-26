@@ -1,0 +1,40 @@
+{
+  "name": "TAZAWWUD — Your Provision for Every Day",
+  "short_name": "TAZAWWUD",
+  "description": "Qur'an, Sunnah, Salah, and daily Islamic guidance. Your provision for every day.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAF9F5",
+  "theme_color": "#0F5C4A",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["lifestyle", "education", "religion"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
