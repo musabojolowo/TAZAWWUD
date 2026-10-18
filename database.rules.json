@@ -42,7 +42,7 @@
 
     "stories": {
       ".read": true,
-      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$storyId": {
         ".validate": "newData.hasChildren(['title', 'body', 'published', 'createdAt', 'updatedAt'])",
         "title": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
@@ -69,7 +69,7 @@
 
     "dailyContent": {
       ".read": true,
-      ".write": "auth != null && root.child('admins').child(auth.uid).exists()",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
       "$date": {
         "verse": {
           ".validate": "newData.hasChildren(['surahNumber', 'ayahNumber', 'surahName', 'arabicText', 'translation'])",
