@@ -525,6 +525,25 @@ async function initFirebaseFeatures() {
     sidebarResult.value.initSidebar();
   } else {
     console.warn("[TAZAWWUD] Settings sidebar unavailable:", sidebarResult.reason?.message);
+    // Keep the account/settings panel reachable even if its Firebase-dependent
+    // module graph fails to load. Account actions may be unavailable, but the
+    // rest of the panel and navigation must not disappear with Firebase.
+    const accountButton = document.getElementById("account-menu-btn");
+    const sidebar = document.getElementById("settings-sidebar");
+    const backdrop = document.getElementById("sidebar-backdrop");
+    const closeButton = document.getElementById("sidebar-close-btn");
+    const closeFallback = () => {
+      if (sidebar) sidebar.hidden = true;
+      if (backdrop) backdrop.hidden = true;
+      document.body.style.overflow = "";
+    };
+    accountButton?.addEventListener("click", () => {
+      if (sidebar) sidebar.hidden = false;
+      if (backdrop) backdrop.hidden = false;
+      document.body.style.overflow = "hidden";
+    });
+    closeButton?.addEventListener("click", closeFallback);
+    backdrop?.addEventListener("click", closeFallback);
   }
 
   if (reminderResult.status === "fulfilled") {
