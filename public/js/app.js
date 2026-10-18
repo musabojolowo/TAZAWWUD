@@ -487,7 +487,13 @@ function renderModuleError(root, message) {
 }
 
 /** Shows that account features are unavailable, without affecting the pages. */
-function showAccountUnavailable() {
+/** Short, readable text for an error, so the real cause shows on the page. */
+function describeError(error) {
+  const text = `${error?.name || "Error"}: ${error?.message || String(error)}`;
+  return text.length > 300 ? `${text.slice(0, 300)}…` : text;
+}
+
+function showAccountUnavailable(reason = "") {
   const button = document.getElementById("google-sign-in-btn");
   if (button) {
     button.disabled = true;
@@ -496,7 +502,7 @@ function showAccountUnavailable() {
   const status = document.getElementById("sync-status");
   if (status) {
     status.hidden = false;
-    status.textContent = "Account and cloud sync are unavailable right now. The pages still work.";
+    status.textContent = `Account and cloud sync are unavailable. ${reason} The pages still work.`.trim();
     status.classList.add("sync-status--error");
   }
 }
@@ -514,11 +520,23 @@ async function initFirebaseFeatures() {
     import("./firebase-config.js"),
   ]);
 
+  // List every module that failed, so the page shows the real cause.
+  const failures = [
+    ["cloud-sync", cloudResult],
+    ["auth", authResult],
+    ["sidebar", sidebarResult],
+    ["reminders", reminderResult],
+    ["firebase-config", configResult],
+  ]
+    .filter(([, result]) => result.status === "rejected")
+    .map(([name, result]) => `[${name}] ${describeError(result.reason)}`);
+  const reason = failures.join(" ");
+
   if (cloudResult.status === "fulfilled" && authResult.status === "fulfilled") {
     initCloudSync({ cloud: cloudResult.value, authModule: authResult.value });
   } else {
-    console.warn("[TAZAWWUD] Account features unavailable:", (cloudResult.reason || authResult.reason)?.message);
-    showAccountUnavailable();
+    console.warn("[TAZAWWUD] Account features unavailable:", reason);
+    showAccountUnavailable(reason);
   }
 
   if (sidebarResult.status === "fulfilled") {
@@ -567,7 +585,7 @@ function initApp() {
   // Firebase-backed features load separately; a failure here never blocks navigation.
   initFirebaseFeatures().catch((error) => {
     console.warn("[TAZAWWUD] Firebase features failed to start:", error?.message);
-    showAccountUnavailable();
+    showAccountUnavailable(describeError(error));
   });
   // Loads the download manifest and keeps "Offline" badges in sync. Light
   // startup cost: heavy Qur'an/Hadith modules are not loaded here.
