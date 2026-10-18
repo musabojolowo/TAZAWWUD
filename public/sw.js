@@ -6,7 +6,7 @@
 // Bump CACHE_VERSION whenever cached assets change, to bust old caches.
 // ============================================================================
 
-const CACHE_VERSION = "tazawwud-shell-v54";
+const CACHE_VERSION = "tazawwud-shell-v55";
 
 const APP_SHELL_ASSETS = [
   "/",
@@ -173,6 +173,13 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
+
+  // Third-party files (the Firebase SDK, Google Fonts) go straight to the network.
+  // Caching them here can serve a stored copy that a module or stylesheet cannot
+  // use, which breaks the account features and the icon font. Our own API hosts
+  // and audio are still handled below.
+  const isThirdParty = new URL(request.url).origin !== self.location.origin;
+  if (isThirdParty && !isApiRequest(request) && !isAudioRequest(request)) return;
 
   if (isApiRequest(request) || isAppCodeRequest(request)) {
     event.respondWith(networkFirst(event, request));
