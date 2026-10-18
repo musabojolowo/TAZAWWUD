@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- Applies the saved/preferred theme before first paint — see the file
+       itself for why this is a plain script tag, not inline. -->
+  <script src="/js/theme-preload.js"></script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>TAZAWWUD | Your Provision for Every Day</title>
+  <meta name="description" content="TAZAWWUD — Qur'an, Sunnah, Salah, and daily Islamic guidance. Your provision for every day." />
+
+  <!-- PWA Meta -->
+  <meta name="theme-color" content="#0F5C4A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TAZAWWUD" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+
+  <!-- One font stylesheet keeps the font request chain short; swap avoids invisible text. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..600,0..1,-25..0&family=Noto+Naskh+Arabic:wght@400;500;700&display=swap"
+  />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- Skip link for accessibility -->
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <div id="network-status" class="network-status" role="status" aria-live="polite" hidden></div>
+  <div id="sync-status" class="sync-status" role="status" aria-live="polite" hidden></div>
+
+  <!-- ================================================================
+       MINIMAL HEADER — brand mark + one account/menu icon. Full
+       navigation lives in the bottom nav; Settings/Dark Mode live in the
+       sidebar below, not here.
+       ================================================================ -->
+  <header id="site-header" class="site-header" role="banner">
+    <div class="container site-header__inner">
+      <a href="#home" class="brand brand--compact" data-view="home" aria-label="TAZAWWUD — Home">
+        <img class="brand__mark" src="/icons/icon-96.png" width="28" height="28" alt="" />
+        <span class="brand__name">TAZAWWUD</span>
+      </a>
+
+      <button type="button" id="account-menu-btn" class="account-menu-btn" aria-haspopup="dialog" aria-controls="settings-sidebar" aria-label="Account and settings">
+        <span class="material-symbols-rounded icon" aria-hidden="true">account_circle</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================================================================
+       SETTINGS SIDEBAR — Account, Appearance (Dark Mode), and links to
+       where the rest of Settings already lives (Salah, Qur'an, Calendar)
+       rather than duplicating those controls in a second place.
+       Populated/wired by public/js/sidebar.js.
+       ================================================================ -->
+  <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+  <aside id="settings-sidebar" class="settings-sidebar" role="dialog" aria-modal="true" aria-labelledby="sidebar-heading" hidden>
+    <div class="settings-sidebar__header">
+      <h2 id="sidebar-heading">Account &amp; Settings</h2>
+      <button type="button" id="sidebar-close-btn" class="sidebar-close-btn" aria-label="Close">
+        <span class="material-symbols-rounded icon" aria-hidden="true">close</span>
+      </button>
+    </div>
+
+    <div class="settings-sidebar__body">
+      <section class="settings-section" aria-labelledby="settings-account-heading">
+        <h3 id="settings-account-heading" class="settings-section__heading">Account</h3>
+        <p id="account-status" class="settings-account-status">Checking sign-in status…</p>
+        <button type="button" id="google-sign-in-btn" class="salah-button">Sign in with Google</button>
+        <button type="button" id="sign-out-btn" class="salah-button salah-button--secondary" hidden>Sign out</button>
+      </section>
+
+      <section class="settings-section" aria-labelledby="settings-appearance-heading">
+        <h3 id="settings-appearance-heading" class="settings-section__heading">Appearance</h3>
+        <button type="button" id="theme-toggle-btn" class="settings-row-btn" aria-label="Toggle dark mode">
+          <span class="material-symbols-rounded icon" aria-hidden="true">dark_mode</span>
+          <span>Dark Mode</span>
+        </button>
+      </section>
+
+      <section class="settings-section" aria-labelledby="settings-links-heading">
+        <h3 id="settings-links-heading" class="settings-section__heading">Prayer &amp; Qur'an</h3>
+        <button type="button" class="settings-row-btn" data-goto-view="salah">
+          <span class="material-symbols-rounded icon" aria-hidden="true">notifications</span>
+          <span>Adhan, Notifications &amp; Location</span>
+        </button>
+        <button type="button" class="settings-row-btn" data-goto-view="quran">
+          <span class="material-symbols-rounded icon" aria-hidden="true">translate</span>
+          <span>Qur'an Translation &amp; Reciter</span>
+        </button>
+      </section>
+
+      <section class="settings-section" aria-labelledby="settings-tools-heading">
+        <h3 id="settings-tools-heading" class="settings-section__heading">Tools &amp; Features</h3>
+        <h4 class="settings-subheading">Offline Content</h4>
+        <p id="offline-status" class="settings-note">Checking…</p>
+        <button type="button" class="settings-row-btn" data-goto-view="admin">
+          <span class="material-symbols-rounded icon" aria-hidden="true">admin_panel_settings</span>
+          <span>Stories &amp; Daily Admin</span>
+        </button>
+      </section>
+
+      <section class="settings-section" aria-labelledby="settings-reminders-heading">
+        <h3 id="settings-reminders-heading" class="settings-section__heading">Daily Reminders</h3>
+        <p class="settings-note">
+          Local notifications at a time you choose, every day. Only fire while TAZAWWUD is open
+          (or recently open) — not true push notifications when the app is fully closed.
+        </p>
+        <p id="reminders-permission-note" class="settings-note" hidden>
+          Notifications are blocked for this site. Enable them in your browser/device settings
+          to use reminders.
+        </p>
+        <ul id="reminders-list" class="reminders-list"></ul>
+        <form id="reminder-add-form" class="reminder-add-form">
+          <input type="text" id="reminder-label-input" placeholder="Label (e.g. Evening Adhkar)" maxlength="60" required />
+          <input type="time" id="reminder-time-input" required />
+          <button type="submit" class="salah-button">Add Reminder</button>
+        </form>
+      </section>
+
+      <details class="settings-section settings-section--privacy">
+        <summary id="settings-privacy-heading" class="settings-section__heading">Privacy &amp; Data</summary>
+        <p class="settings-note">
+          Bookmarks and preferences are stored on this device, and in your account's private
+          Realtime Database record if you're signed in — never visible to other users.
+          Qur'an, Hadith and Salah data come from third-party sources (see About).
+        </p>
+        <button type="button" id="delete-data-btn" class="settings-row-btn settings-row-btn--danger">
+          <span class="material-symbols-rounded icon" aria-hidden="true">delete_forever</span>
+          <span>Delete My Data…</span>
+        </button>
+      </details>
+
+      <section class="settings-section settings-downloads-section" aria-label="Offline downloads">
+        <div id="settings-downloads" class="settings-downloads"></div>
+      </section>
+      <section class="settings-section" aria-labelledby="settings-about-heading">
+        <h3 id="settings-about-heading" class="settings-section__heading">About</h3>
+        <p class="settings-note">
+          <strong>TAZAWWUD</strong> <span lang="ar" dir="rtl">تَزَوُّد</span> — your provision for
+          every day. Qur'an text: alquran.cloud. Prayer times: aladhan.com. Free and ad-free.
+        </p>
+      </section>
+    </div>
+  </aside>
+
+  <main id="main-content" class="container main-content" role="main">
+    <!-- ================================================================
+         VIEW: HOME
+         ================================================================ -->
+    <section id="view-home" class="view" data-view-panel="home">
+      <!-- ================================================================
+           HOME DASHBOARD — Next Prayer + countdown, today's five prayers,
+           Quick Access. Populated by public/js/home.js, which reads all
+           prayer data from public/js/salah.js (no second calculation
+           system) so this stays in sync with the Salah tab.
+           ================================================================ -->
+      <section id="home-dashboard-root" class="home-dashboard" aria-live="polite" aria-busy="true">
+        <div class="home-dashboard-loading">Loading prayer times…</div>
+      </section>
+
+      <section id="daily-featured-content-root" class="daily-featured-content" aria-live="polite"></section>
+      <section id="home-explore-root" class="home-explore-root" aria-live="polite"></section>
+
+      <div id="continue-reading-banner-home" class="continue-reading-banner-home"></div>
+    </section>
+
+    <!-- ================================================================
+         VIEW: QUR'AN (Phase 4, Part 1 — Surah list)
+         ================================================================ -->
+    <section id="view-quran" class="view" data-view-panel="quran" hidden>
+      <header class="view-header">
+        <h2 class="view-header__title">
+          <span class="material-symbols-rounded icon" aria-hidden="true">menu_book</span>
+          The Noble Qur'an
+        </h2>
+        <p class="view-header__subtitle">All 114 Surahs — tap any Surah to read.</p>
+      </header>
+
+      <div id="continue-reading-banner"></div>
+
+      <div class="surah-toolbar">
+        <label class="surah-search" for="surah-search-input">
+          <span class="material-symbols-rounded icon" aria-hidden="true">search</span>
+          <input
+            type="search"
+            id="surah-search-input"
+            placeholder="Search Surah by name or number…"
+            autocomplete="off"
+          />
+        </label>
+      </div>
+
+      <ul id="surah-list" class="surah-list" aria-live="polite" aria-busy="true">
+        <!-- Populated by public/js/quran.js. Skeleton cards shown while loading. -->
+      </ul>
+    </section>
+
+    <!-- ================================================================
+         VIEW: SURAH READER — classic verse-by-verse (Phase 4, Part 2)
+         Kept fully intact and reachable; Mushaf view (below) is now the
+         default entry point when tapping a Surah, per Phase 5 direction.
+         ================================================================ -->
+    <section id="view-reader" class="view" data-view-panel="reader" hidden>
+      <div class="reader-topbar">
+        <button type="button" id="reader-back-btn" class="reader-back-btn">
+          <span class="material-symbols-rounded icon" aria-hidden="true">arrow_back</span>
+          Back to Surahs
+        </button>
+        <button type="button" id="reader-switch-to-mushaf-btn" class="reader-switch-btn">
+          <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">menu_book</span>
+          Mushaf view
+        </button>
+      </div>
+
+      <div id="reader-content" class="reader-content" aria-live="polite" aria-busy="true">
+        <!-- Populated by public/js/quran.js (loadSurahDetail) -->
+      </div>
+    </section>
+
+    <!-- ================================================================
+         VIEW: MUSHAF — page-by-page Qur'an reading (Phase 5 revision)
+         This is the primary Qur'an reading experience: continuous flowing
+         Arabic text arranged as a printed muṣḥaf page, not verse cards.
+         ================================================================ -->
+    <section id="view-mushaf" class="view" data-view-panel="mushaf" hidden>
+      <div class="reader-topbar">
+        <button type="button" id="mushaf-back-btn" class="reader-back-btn">
+          <span class="material-symbols-rounded icon" aria-hidden="true">arrow_back</span>
+          Back to Surahs
+        </button>
+        <button type="button" id="mushaf-switch-to-verses-btn" class="reader-switch-btn">
+          <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">view_agenda</span>
+          Verse view
+        </button>
+      </div>
+
+      <div id="mushaf-root" class="mushaf-root" aria-live="polite" aria-busy="true">
+        <!-- Populated by public/js/mushaf.js (renderMushafPage) -->
+      </div>
+    </section>
+
+    <!-- ================================================================
+         VIEW: SUNNAH / HADITH (Phase 6)
+         ================================================================ -->
+    <section id="view-sunnah" class="view" data-view-panel="sunnah" hidden>
+      <header class="view-header">
+        <h2 class="view-header__title">
+          <span class="material-symbols-rounded icon" aria-hidden="true">history_edu</span>
+          Hadith Collections
+        </h2>
+        <p class="view-header__subtitle">The major authentic collections — tap one to browse chapters.</p>
+      </header>
+
+      <div id="hadith-search-wrapper" class="hadith-search-wrapper" hidden>
+        <!-- Populated by public/js/hadith.js (renderSearchBar) -->
+      </div>
+
+      <div id="hadith-root" aria-live="polite">
+        <!-- Populated by public/js/hadith.js (initHadithSection) -->
+      </div>
+    </section>
+
+    <section id="view-salah" class="view" data-view-panel="salah" hidden>
+      <div id="salah-root" class="salah-root" aria-live="polite" aria-busy="false">
+        <div class="salah-loading">Loading prayer times...</div>
+      </div>
+    </section>
+
+    <section id="view-qiblah" class="view" data-view-panel="qiblah" hidden>
+      <div id="qiblah-root" class="qiblah-root" aria-live="polite" aria-busy="false">
+        <div class="qiblah-loading">Preparing Qiblah direction...</div>
+      </div>
+    </section>
+
+    <section id="view-calendar" class="view" data-view-panel="calendar" hidden>
+      <div id="calendar-root" class="calendar-root" aria-live="polite" aria-busy="false">
+        <div class="calendar-loading">Loading Islamic calendar...</div>
+      </div>
+    </section>
+
+    <section id="view-tasbih" class="view" data-view-panel="tasbih" hidden>
+      <div id="tasbih-root" class="tasbih-root">
+        <div class="tasbih-loading">Loading Tasbih…</div>
+      </div>
+    </section>
+
+    <section id="view-stories" class="view" data-view-panel="stories" hidden>
+      <div id="stories-root" class="stories-root">
+        <div class="stories-status">Loading Stories…</div>
+      </div>
+    </section>
+
+    <!-- Admin is reachable at #admin by anyone, same as any other view — the
+         real protection is database.rules.json (see admin.js), not hiding
+         this route. Not linked from Quick Access/bottom nav on purpose, to
+         avoid putting it in front of regular users unnecessarily. -->
+    <section id="view-admin" class="view" data-view-panel="admin" hidden>
+      <div id="admin-root" class="admin-root">
+        <div class="stories-status">Loading…</div>
+      </div>
+    </section>
+    <section id="view-dua" class="view" data-view-panel="dua" hidden>
+      <div id="dua-root" class="dua-root">
+        <div class="stories-status">Loading Dua &amp; Dhikr…</div>
+      </div>
+    </section>
+
+    <section id="view-names99" class="view" data-view-panel="names99" hidden>
+      <div id="names99-root" class="names99-root">
+        <div class="stories-status">Loading…</div>
+      </div>
+    </section>
+
+    <section id="view-mosque" class="view" data-view-panel="mosque" hidden>
+      <div id="mosque-root" class="mosque-root">
+        <div class="stories-status">Loading…</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================================================================
+       BOTTOM NAVIGATION (mobile app-shell pattern)
+       ================================================================ -->
+  <nav class="bottom-nav" aria-label="Bottom navigation">
+    <a href="#home" class="bottom-nav__item is-active" data-view="home">
+      <span class="material-symbols-rounded icon">home</span>
+      <span class="bottom-nav__label">Home</span>
+    </a>
+    <a href="#quran" class="bottom-nav__item" data-view="quran">
+      <span class="material-symbols-rounded icon">menu_book</span>
+      <span class="bottom-nav__label">Qur'an</span>
+    </a>
+    <a href="#sunnah" class="bottom-nav__item" data-view="sunnah">
+      <span class="material-symbols-rounded icon">history_edu</span>
+      <span class="bottom-nav__label">Hadith</span>
+    </a>
+  </nav>
+
+
+  <!-- Shared audio element for ayah recitation playback (Phase 4, Part 2) -->
+  <audio id="quran-audio-player" preload="none"></audio>
+
+  <!-- App entry point (ES Module) -->
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
+
