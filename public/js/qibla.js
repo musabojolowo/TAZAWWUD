@@ -190,7 +190,9 @@ export function initQibla(root) {
     }
     locationButton.disabled = true;
     renderStatus(root, "Getting your location...");
-    getPosition().then(
+    // Qiblah needs the freshest practical coordinates; the shared default is
+    // intentionally city-level for prayer times and can be stale on a phone.
+    getPosition({ timeout: 20000, enableHighAccuracy: true, maximumAge: 0 }).then(
       ({ coords }) => {
         qiblaBearing = calculateQiblaBearing(coords.latitude, coords.longitude);
         setBearing(root, qiblaBearing);

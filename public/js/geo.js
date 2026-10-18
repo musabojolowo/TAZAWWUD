@@ -10,7 +10,7 @@
 // city-level location, and low accuracy gets a fix much more reliably on phones.
 // ============================================================================
 
-export function getPosition({ timeout = 15000 } = {}) {
+export function getPosition({ timeout = 15000, enableHighAccuracy = false, maximumAge = 300000 } = {}) {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(Object.assign(new Error("Geolocation is unavailable in this browser."), { code: 0 }));
@@ -29,7 +29,7 @@ export function getPosition({ timeout = 15000 } = {}) {
     navigator.geolocation.getCurrentPosition(
       finish(resolve),
       finish(reject),
-      { enableHighAccuracy: false, maximumAge: 300000, timeout: Math.max(1000, timeout - 1000) }
+      { enableHighAccuracy, maximumAge, timeout: Math.max(1000, timeout - 1000) }
     );
   });
 }

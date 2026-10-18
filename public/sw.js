@@ -6,7 +6,7 @@
 // Bump CACHE_VERSION whenever cached assets change, to bust old caches.
 // ============================================================================
 
-const CACHE_VERSION = "tazawwud-shell-v52";
+const CACHE_VERSION = "tazawwud-shell-v53";
 
 const APP_SHELL_ASSETS = [
   "/",
