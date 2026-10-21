@@ -6,14 +6,16 @@
 // interaction; the enable action unlocks the audio element where permitted.
 // ============================================================================
 
+import { loadPrefs, savePrefs, claimOnce, displayAlert, parseMinute } from "./notification-prefs.js";
+
 const NOTIFICATION_SETTINGS_KEY = "tazawwud:prayer-notifications-enabled";
 const MUADHIN_SETTINGS_KEY = "tazawwud:muadhin";
 
-// Named Adhan recordings are linked from PrayTimes.org's public Adhan Audio
-// collection (https://praytimes.org/docs/adhan). That source attributes each
-// file by muezzin; keep those displayed names aligned with the source page.
-// These are streamed on demand and are never bundled with the app.
-const PRAY_TIMES_AUDIO = "https://praytimes.org/audio/sunni";
+// Named Adhan recordings are MP3 files stored in this project under
+// public/assets/adhan/, one per reciter, with the exact file names below.
+// Only add recordings you have the right to use. If a file is missing, the
+// app plays the built-in chime and says so.
+const ADHAN_AUDIO_BASE = "/assets/adhan";
 const MUADHIN_OPTIONS = [
   {
     id: "chime",
@@ -23,44 +25,74 @@ const MUADHIN_OPTIONS = [
   {
     id: "abdul-basit",
     label: "Abdul Basit",
-    url: `${PRAY_TIMES_AUDIO}/Abdul-Basit.mp3`,
-    source: "PrayTimes.org",
+    url: `${ADHAN_AUDIO_BASE}/Abdul-Basit.mp3`,
+    source: "Project audio",
   },
   {
     id: "abdul-ghaffar",
     label: "Abdul Ghaffar",
-    url: `${PRAY_TIMES_AUDIO}/Abdul-Ghaffar.mp3`,
-    source: "PrayTimes.org",
+    url: `${ADHAN_AUDIO_BASE}/Abdul-Ghaffar.mp3`,
+    source: "Project audio",
   },
   {
     id: "abdul-hakam",
     label: "Abdul Hakam",
-    url: `${PRAY_TIMES_AUDIO}/Abdul-Hakam.mp3`,
-    source: "PrayTimes.org",
+    url: `${ADHAN_AUDIO_BASE}/Abdul-Hakam.mp3`,
+    source: "Project audio",
   },
   {
     id: "al-hussaini",
     label: "Al-Hussaini",
-    url: `${PRAY_TIMES_AUDIO}/Al-Hussaini.mp3`,
-    source: "PrayTimes.org",
+    url: `${ADHAN_AUDIO_BASE}/Al-Hussaini.mp3`,
+    source: "Project audio",
   },
   {
     id: "minshawi",
     label: "Minshawi",
-    url: `${PRAY_TIMES_AUDIO}/Minshawi.mp3`,
-    source: "PrayTimes.org",
+    url: `${ADHAN_AUDIO_BASE}/Minshawi.mp3`,
+    source: "Project audio",
   },
   {
     id: "naghshbandi",
     label: "Naghshbandi",
-    url: `${PRAY_TIMES_AUDIO}/Naghshbandi.mp3`,
-    source: "PrayTimes.org",
+    url: `${ADHAN_AUDIO_BASE}/Naghshbandi.mp3`,
+    source: "Project audio",
   },
   {
     id: "hafiz-murad",
     label: "Hafiz Murad",
-    url: `${PRAY_TIMES_AUDIO}/Hafiz-Murad.mp3`,
-    source: "PrayTimes.org",
+    url: `${ADHAN_AUDIO_BASE}/Hafiz-Murad.mp3`,
+    source: "Project audio",
+  },
+  {
+    id: "adhan-egypt",
+    label: "Egypt",
+    url: `${ADHAN_AUDIO_BASE}/Adhan-Egypt.mp3`,
+    source: "Project audio",
+  },
+  {
+    id: "adhan-madinah",
+    label: "Madinah",
+    url: `${ADHAN_AUDIO_BASE}/Adhan-Madinah.mp3`,
+    source: "Project audio",
+  },
+  {
+    id: "adhan-alaqsa",
+    label: "Al-Aqsa",
+    url: `${ADHAN_AUDIO_BASE}/Adhan-Alaqsa.mp3`,
+    source: "Project audio",
+  },
+  {
+    id: "adhan-makkah",
+    label: "Makkah",
+    url: `${ADHAN_AUDIO_BASE}/Adhan-Makkah.mp3`,
+    source: "Project audio",
+  },
+  {
+    id: "yusuf-islam",
+    label: "Yusuf Islam",
+    url: `${ADHAN_AUDIO_BASE}/Yusuf-Islam.mp3`,
+    source: "Project audio",
   },
 ];
 
@@ -92,12 +124,14 @@ export function todayKey() {
   return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
 }
 
+// The master switch now lives in the notification settings (notification-prefs.js),
+// which also keep the old key in step, so existing behaviour is unchanged.
 function readEnabled() {
-  return localStorage.getItem(NOTIFICATION_SETTINGS_KEY) === "true";
+  return loadPrefs().master;
 }
 
 function writeEnabled(enabled) {
-  localStorage.setItem(NOTIFICATION_SETTINGS_KEY, String(enabled));
+  savePrefs({ ...loadPrefs(), master: enabled });
 }
 
 function parsePrayerMinute(time) {
@@ -202,10 +236,11 @@ async function playSelectedAudio(audio, audioContext, option = getSelectedMuadhi
 
 function showPrayerNotification(prayer) {
   if (!isSupported() || Notification.permission !== "granted") return;
-  new Notification(`${prayer.name} - TAZAWWUD`, {
+  displayAlert({
+    title: `${prayer.name} - TAZAWWUD`,
     body: `It is time for ${prayer.name} prayer (${prayer.arabic}).`,
     tag: `tazawwud-prayer-${prayer.key}`,
-    icon: "/icons/icon-192.png",
+    url: "/#salah",
   });
 }
 
@@ -240,19 +275,24 @@ export function createNotificationManager(root) {
 
     prayers.forEach((element) => {
       const key = element.dataset.prayerKey;
-      const minute = parsePrayerMinute(timings[key]);
-      if (minute === null || minute !== currentMinute) return;
-
-      const alertKey = `${todayKey()}-${key}-${currentMinute}`;
-      if (lastAlertKey === alertKey) return;
-      lastAlertKey = alertKey;
+      // Per-prayer switch and the offset from the settings (default: at prayer time).
+      const prefs = loadPrefs();
+      if (prefs.prayers[key] === false) return;
+      const prayerMinute = parseMinute(timings[key]);
+      if (prayerMinute === null) return;
+      if ((prayerMinute + prefs.offsetMinutes + 1440) % 1440 !== currentMinute) return;
 
       const prayer = {
         key,
         name: element.dataset.prayerName,
         arabic: element.dataset.prayerArabic,
       };
-      showPrayerNotification(prayer);
+      // The notification and the Adhan audio are each shown once per day, whichever
+      // path (this page or the global scheduler) gets there first.
+      // Ids match the global scheduler's ids exactly ("prayer:Fajr@310"), so the two
+      // paths can never both show the same alert.
+      if (claimOnce(`prayer:${key}@${currentMinute}`)) showPrayerNotification(prayer);
+      if (!claimOnce(`audio:${key}@${currentMinute}`)) return;
       const selected = getSelectedMuadhin();
       playSelectedAudio(audio, getAudioContext(), selected).then((played) => {
         renderStatus(

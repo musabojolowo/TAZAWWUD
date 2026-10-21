@@ -6,7 +6,7 @@
 // Bump CACHE_VERSION whenever cached assets change, to bust old caches.
 // ============================================================================
 
-const CACHE_VERSION = "tazawwud-shell-v55";
+const CACHE_VERSION = "tazawwud-shell-v61";
 
 const APP_SHELL_ASSETS = [
   "/",
@@ -37,6 +37,8 @@ const APP_SHELL_ASSETS = [
   "/js/error-boundary.js",
   "/js/idb-cache.js",
   "/js/geo.js",
+  "/js/notification-prefs.js",
+  "/js/magnetic.js",
   "/js/download-manager.js",
   "/js/downloads-ui.js",
   "/js/html-utils.js",
@@ -157,6 +159,27 @@ async function networkFirst(event, request) {
     throw new Error("Offline and no cached response is available");
   }
 }
+
+// Tapping an alert opens the app (or brings the open app to the front) at the
+// page stored with the alert, such as /#salah or /#home.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || "/#home";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("focus" in client) {
+          // An open window moves to the alert's page, not just to the front.
+          if ("navigate" in client) {
+            return client.navigate(target).then(() => client.focus(), () => client.focus());
+          }
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    })
+  );
+});
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;

@@ -6,7 +6,8 @@
 // shown as a degree-only fallback.
 // ============================================================================
 
-import { getPosition } from "./geo.js";
+import { getPositionWithFallback, describeLocationError } from "./geo.js";
+import { magneticDeclination } from "./magnetic.js";
 
 const KAABA = { latitude: 21.422487, longitude: 39.826206 };
 const DEG_TO_RAD = Math.PI / 180;
@@ -24,6 +25,51 @@ let fallbackTimerId = null;
 function normalizeDegrees(degrees) {
   return (degrees + 360) % 360;
 }
+
+/**
+ * Smooths compass headings with a low-pass filter on unit vectors. Averaging
+ * angles directly would break at the 0/360 boundary, so each reading is blended
+ * as an (x, y) direction and the angle is taken from the result.
+ */
+export function createHeadingSmoother(alpha = 0.2) {
+  let x = null;
+  let y = null;
+  return {
+    push(headingDegrees) {
+      const radians = headingDegrees * DEG_TO_RAD;
+      if (x === null) {
+        x = Math.cos(radians);
+        y = Math.sin(radians);
+      } else {
+        x = (1 - alpha) * x + alpha * Math.cos(radians);
+        y = (1 - alpha) * y + alpha * Math.sin(radians);
+      }
+      return normalizeDegrees(Math.atan2(y, x) * RAD_TO_DEG);
+    },
+    reset() {
+      x = null;
+      y = null;
+    },
+  };
+}
+
+/** Compass accuracy in degrees from iOS (smaller is better); null where the browser doesn't report it. */
+function getCompassAccuracy(event) {
+  return typeof event.webkitCompassAccuracy === "number" ? event.webkitCompassAccuracy : null;
+}
+
+/** The sentence shown under the compass, based on its reported accuracy. */
+export function compassCalibrationNote(accuracy) {
+  if (typeof accuracy !== "number" || accuracy < 0) {
+    return "Compass is live. If the needle seems off, move your phone in a figure eight to calibrate.";
+  }
+  if (accuracy > 20) {
+    return "Compass accuracy is low. Move your phone in a figure eight to calibrate.";
+  }
+  return "Compass is accurate.";
+}
+
+const headingSmoother = createHeadingSmoother();
 
 function calculateQiblaBearing(latitude, longitude) {
   const latitudeRad = latitude * DEG_TO_RAD;
@@ -121,25 +167,31 @@ export function initQibla(root) {
   renderShell(root);
 
   let qiblaBearing = null;
+  // Magnetic declination at the user's location, in degrees east. The compass
+  // reads magnetic north, so this is added to get the true heading.
+  let declinationDeg = 0;
   let receivedReliableHeading = false;
   const locationButton = root.querySelector("[data-qiblah-location]");
   const orientationButton = root.querySelector("[data-qiblah-orientation]");
   const needle = root.querySelector("[data-qiblah-needle]");
 
   const handleOrientation = (event) => {
-    const heading = getHeading(event);
-    // heading === null means this particular event doesn't give a
+    const rawHeading = getHeading(event);
+    // rawHeading === null means this particular event doesn't give a
     // reliably north-referenced reading (see getHeading) — leave the
     // needle exactly where it is (pointing at the accurate static bearing
     // from setBearing()) rather than rotating it off something untrustworthy.
-    if (heading === null || qiblaBearing === null) return;
+    if (rawHeading === null || qiblaBearing === null) return;
+    const magneticHeading = headingSmoother.push(rawHeading);
+    const heading = normalizeDegrees(magneticHeading + declinationDeg);
     if (!receivedReliableHeading) {
       receivedReliableHeading = true;
       if (fallbackTimerId !== null) {
         window.clearTimeout(fallbackTimerId);
         fallbackTimerId = null;
       }
-      root.querySelector("[data-qiblah-sensor-note]").textContent = "Live compass heading enabled.";
+      root.querySelector("[data-qiblah-sensor-note]").textContent =
+        compassCalibrationNote(getCompassAccuracy(event));
     }
     needle.style.transform = `rotate(${normalizeDegrees(qiblaBearing - heading)}deg)`;
   };
@@ -151,6 +203,7 @@ export function initQibla(root) {
     window.addEventListener("deviceorientation", activeOrientationHandler, true);
     orientationListening = true;
     receivedReliableHeading = false;
+    headingSmoother.reset();
     renderStatus(root, "Compass enabled — waiting for a reading...");
     root.querySelector("[data-qiblah-sensor-note]").textContent = "Waiting for compass data...";
 
@@ -192,9 +245,10 @@ export function initQibla(root) {
     renderStatus(root, "Getting your location...");
     // Qiblah needs the freshest practical coordinates; the shared default is
     // intentionally city-level for prayer times and can be stale on a phone.
-    getPosition({ timeout: 20000, enableHighAccuracy: true, maximumAge: 0 }).then(
+    getPositionWithFallback({ primaryHighAccuracy: true, timeout: 20000 }).then(
       ({ coords }) => {
         qiblaBearing = calculateQiblaBearing(coords.latitude, coords.longitude);
+        declinationDeg = magneticDeclination(coords.latitude, coords.longitude);
         setBearing(root, qiblaBearing);
         renderStatus(root, `Qiblah calculated for ${coords.latitude.toFixed(2)}°, ${coords.longitude.toFixed(2)}°.`);
         if (supportsOrientation()) {
@@ -212,7 +266,7 @@ export function initQibla(root) {
         locationButton.disabled = false;
         const message = error?.code === 1
           ? "Location access was denied. Please allow location or use another compass app."
-          : "Unable to get your location. Please try again.";
+          : `Unable to get your location. ${describeLocationError(error)} Please try again.`;
         renderStatus(root, message, true);
         console.warn("[TAZAWWUD] Qiblah geolocation failed:", error?.message);
       }

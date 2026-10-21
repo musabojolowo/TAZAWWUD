@@ -1,4 +1,3 @@
-
 name: Deploy TAZAWWUD to Firebase Hosting
 
 on:
@@ -10,12 +9,28 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Check JavaScript syntax
+        run: |
+          set -e
+          for f in public/js/*.js public/sw.js; do node --check "$f"; done
+      - name: Check configuration JSON
+        run: |
+          python3 -c "import json; [json.load(open(p)) for p in ['firebase.json','database.rules.json','.firebaserc','public/manifest.json']]; print('JSON OK')"
+      - name: Refuse to deploy test-only intent rules
+        run: |
+          python3 -c "import json,sys; r=json.load(open('database.rules.json'))['rules']; sys.exit(1 if 'pushIntents' in r else 0)"
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
@@ -24,4 +39,3 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TAZAWWUD_4028B }}
           channelId: live
           projectId: tazawwud-4028b
-

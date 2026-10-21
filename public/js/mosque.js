@@ -12,6 +12,7 @@
 // ============================================================================
 
 import { escapeHtml } from "./html-utils.js";
+import { getPositionWithFallback, describeLocationError } from "./geo.js";
 
 const SALAH_LOCATION_KEY = "tazawwud:salah-location";
 
@@ -62,14 +63,17 @@ function nearMe(root) {
     return;
   }
   showStatus(root, "Getting your location…");
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
+  getPositionWithFallback()
+    .then(({ coords }) => {
       showStatus(root, "Opened mosques near you in a new tab.");
-      openMap(nearbyMosquesUrl(position.coords.latitude.toFixed(5), position.coords.longitude.toFixed(5)));
-    },
-    () => showStatus(root, "Location permission was not given. Type a place below instead.", true),
-    { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 }
-  );
+      openMap(nearbyMosquesUrl(coords.latitude.toFixed(5), coords.longitude.toFixed(5)));
+    })
+    .catch((error) => {
+      const message = error?.code === 1
+        ? "Location permission was not given. Type a place below instead."
+        : `Unable to get your location. ${describeLocationError(error)} Type a place below instead.`;
+      showStatus(root, message, true);
+    });
 }
 
 export function initMosque(root) {
