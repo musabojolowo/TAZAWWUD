@@ -1,7 +1,9 @@
 name: Preview TAZAWWUD (no live change)
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - preview-test
 
 permissions:
   contents: read
