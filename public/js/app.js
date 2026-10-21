@@ -429,6 +429,13 @@ export function navigateTo(viewName) {
 }
 
 function initRouter() {
+  // A notification tap can change the hash of an app that is already open. Without
+  // this listener the URL would change but the screen would stay the same.
+  window.addEventListener("hashchange", () => {
+    const view = window.location.hash.replace("#", "").split("/")[0];
+    if (VALID_VIEWS.includes(view) && view !== appState.currentView) showView(view);
+  });
+
   document.querySelectorAll("[data-view]").forEach((link) => {
     link.addEventListener("click", (event) => {
       event.preventDefault();

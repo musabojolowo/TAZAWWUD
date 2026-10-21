@@ -33,3 +33,37 @@ export function getPosition({ timeout = 15000, enableHighAccuracy = false, maxim
     );
   });
 }
+
+/**
+ * Tries the preferred accuracy first. If the phone can't find its position
+ * (code 2) or the request times out (code 3), it tries once more with the other
+ * accuracy: some phones only get a fix from GPS, others only from the network.
+ * A refused permission (code 1) or no support (code 0) is not retried.
+ */
+export async function getPositionWithFallback({ primaryHighAccuracy = false, timeout = 15000 } = {}) {
+  try {
+    return await getPosition({
+      timeout,
+      enableHighAccuracy: primaryHighAccuracy,
+      maximumAge: primaryHighAccuracy ? 0 : 300000,
+    });
+  } catch (error) {
+    if (error?.code === 0 || error?.code === 1) throw error;
+    return getPosition({
+      timeout,
+      enableHighAccuracy: !primaryHighAccuracy,
+      maximumAge: 0,
+    });
+  }
+}
+
+/** A short, specific sentence for a location error, including its code. */
+export function describeLocationError(error) {
+  switch (error?.code) {
+    case 0: return "This browser can't share location.";
+    case 1: return "Location permission was refused.";
+    case 2: return "Your phone couldn't find its position (code 2).";
+    case 3: return "The location request took too long (code 3).";
+    default: return `Location failed (${error?.message || "unknown error"}).`;
+  }
+}

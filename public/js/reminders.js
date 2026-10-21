@@ -19,6 +19,8 @@
 // ============================================================================
 
 import { isSupported, todayKey } from "./notifications.js";
+import { loadPrefs, buildSchedule, claimOnce, displayAlert } from "./notification-prefs.js";
+import { getPrayerSnapshot } from "./salah.js";
 
 const STORAGE_KEY = "tazawwud:daily-reminders";
 const CHECK_INTERVAL_MS = 15000;
@@ -100,16 +102,63 @@ export function onRemindersChanged(callback) {
 
 function showReminderNotification(reminder) {
   if (!isSupported() || Notification.permission !== "granted") return;
-  new Notification(`${reminder.label} — TAZAWWUD`, {
+  displayAlert({
+    title: `${reminder.label} — TAZAWWUD`,
     body: "This is your daily reminder.",
     tag: `tazawwud-reminder-${reminder.id}`,
-    icon: "/icons/icon-192.png",
+    url: "/#home",
   });
 }
 
-function checkReminders() {
+// Prayer times for the built-in alerts. Refreshed at most every 30 minutes,
+// using the same calculation as the Salah page (getPrayerSnapshot).
+const TIMINGS_REFRESH_MS = 30 * 60 * 1000;
+const RETRY_AFTER_FAILURE_MS = 5 * 60 * 1000;
+let scheduleTimings = null;
+let timingsFetchedAt = 0;
+let lastAttemptAt = 0;
+let timingsDirty = true;
+
+// The Salah page announces a location or calculation change. The next check then
+// recalculates at once, instead of waiting up to 30 minutes.
+window.addEventListener("tazawwud:prayer-inputs-changed", () => {
+  timingsDirty = true;
+  lastAttemptAt = 0;
+});
+
+async function refreshScheduleTimings() {
+  const fresh = scheduleTimings && !timingsDirty && Date.now() - timingsFetchedAt < TIMINGS_REFRESH_MS;
+  if (fresh || Date.now() - lastAttemptAt < RETRY_AFTER_FAILURE_MS) return;
+  lastAttemptAt = Date.now();
+  try {
+    const snapshot = await getPrayerSnapshot();
+    if (snapshot?.timings) {
+      scheduleTimings = snapshot.timings;
+      timingsFetchedAt = Date.now();
+      timingsDirty = false;
+    }
+  } catch (error) {
+    // Keep the last known times; the Salah page reports location problems itself.
+    console.warn("[TAZAWWUD] Could not refresh prayer times for reminders:", error?.message);
+  }
+}
+
+// Built-in alerts: prayers, Qur'an, Adhkar and Friday. Each is shown once a day.
+function checkBuiltInReminders(now) {
+  const prefs = loadPrefs();
+  const currentMinute = now.getHours() * 60 + now.getMinutes();
+  for (const item of buildSchedule(prefs, scheduleTimings, now)) {
+    if (item.minute !== currentMinute) continue;
+    if (!claimOnce(item.id, now)) continue;
+    displayAlert({ title: item.title, body: item.body, tag: item.tag, url: "/#home" });
+  }
+}
+
+async function checkReminders() {
   if (!isSupported() || Notification.permission !== "granted") return;
+  await refreshScheduleTimings();
   const now = new Date();
+  checkBuiltInReminders(now);
   const currentMinute = now.getHours() * 60 + now.getMinutes();
 
   readReminders().forEach((reminder) => {

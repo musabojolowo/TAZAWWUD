@@ -6,7 +6,8 @@
 // ============================================================================
 
 import { createNotificationManager } from "./notifications.js";
-import { getPosition } from "./geo.js";
+import { getPositionWithFallback, describeLocationError } from "./geo.js";
+import { loadPrefs, updatePrefs } from "./notification-prefs.js";
 import { estimatePrayerTimes, fetchJsonWithFallback, renderFallbackNotice } from "./error-boundary.js";
 
 const ALADHAN_BASE = "https://api.aladhan.com/v1";
@@ -57,6 +58,12 @@ function loadSettings() {
 
 function saveSettings(settings) {
   localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  announcePrayerInputsChanged();
+}
+
+// Lets the global reminder scheduler recalculate prayer times straight away.
+function announcePrayerInputsChanged() {
+  window.dispatchEvent(new Event("tazawwud:prayer-inputs-changed"));
 }
 
 /**
@@ -71,6 +78,7 @@ function saveLocation(location) {
   } catch {
     // Storage unavailable (private browsing, quota) — non-fatal.
   }
+  announcePrayerInputsChanged();
 }
 
 function loadSavedLocation() {
@@ -145,7 +153,29 @@ function renderShell(root) {
           <select id="salah-muadhin" class="salah-select" data-salah-muadhin></select>
           <button type="button" class="salah-button salah-button--secondary" data-salah-muadhin-test>Test</button>
         </div>
-        <p class="salah-preferences__hint">Named Adhan recordings are streamed from PrayTimes.org; Simple Chime works without downloading audio.</p>
+        <p class="salah-preferences__hint">Named Adhan recordings play from files in this app; Simple Chime works without any audio files.</p>
+        <div class="salah-alerts" data-salah-alerts>
+          <p class="salah-alerts__heading">Prayer alerts</p>
+          <div class="salah-alerts__prayers">
+            <label><input type="checkbox" data-prayer-toggle="Fajr" /> Fajr</label>
+            <label><input type="checkbox" data-prayer-toggle="Dhuhr" /> Dhuhr</label>
+            <label><input type="checkbox" data-prayer-toggle="Asr" /> Asr</label>
+            <label><input type="checkbox" data-prayer-toggle="Maghrib" /> Maghrib</label>
+            <label><input type="checkbox" data-prayer-toggle="Isha" /> Isha</label>
+          </div>
+          <label for="salah-alert-offset">Minutes before (−) or after (+) prayer time</label>
+          <input id="salah-alert-offset" class="salah-select" type="number" min="-60" max="60" step="1" data-alert-offset />
+          <label><input type="checkbox" data-alert-quran-enabled /> Qur'an reminder</label>
+          <input class="salah-select" type="time" data-alert-quran-time aria-label="Qur'an reminder time" />
+          <label><input type="checkbox" data-alert-adhkar-morning /> Morning Adhkar (after Fajr)</label>
+          <label><input type="checkbox" data-alert-adhkar-evening /> Evening Adhkar (after Asr)</label>
+          <label for="salah-alert-adhkar-delay">Adhkar: minutes after the prayer</label>
+          <input id="salah-alert-adhkar-delay" class="salah-select" type="number" min="0" max="120" step="1" data-alert-adhkar-delay />
+          <label><input type="checkbox" data-alert-friday-enabled /> Friday reminder (1 hour before Jumu'ah)</label>
+          <label for="salah-alert-jumuah">Jumu'ah time</label>
+          <input id="salah-alert-jumuah" class="salah-select" type="time" data-alert-jumuah />
+          <p class="salah-preferences__hint" data-alert-jumuah-hint></p>
+        </div>
         <p class="salah-notification__status" data-notification-status role="status">
           Notifications are disabled.
         </p>
@@ -307,13 +337,13 @@ function requestLocation(root) {
   }
 
   setBusy(root, "Getting your location...");
-  getPosition()
+  getPositionWithFallback()
     .then(({ coords }) => loadByCoordinates(root, coords.latitude, coords.longitude))
     .catch((error) => {
       root.setAttribute("aria-busy", "false");
       const message = error?.code === 1
         ? "Location access was denied. You can select your city instead."
-        : "Unable to get your location. You can select your city instead.";
+        : `Unable to get your location. ${describeLocationError(error)} You can select your city instead.`;
       setMessage(root, message, true);
       console.warn("[TAZAWWUD] Geolocation unavailable:", error?.message);
     });
@@ -411,7 +441,7 @@ export async function getPrayerSnapshot() {
 
 /** Headless "use my location" for the Home dashboard's own CTA button. */
 export async function requestLocationHeadless() {
-  const position = await getPosition();
+  const position = await getPositionWithFallback();
   currentLocation = {
     type: "coordinates",
     latitude: position.coords.latitude,
@@ -419,6 +449,66 @@ export async function requestLocationHeadless() {
   };
   saveLocation(currentLocation);
   return getPrayerSnapshot();
+}
+
+/** Fills the prayer-alert controls from the saved settings and saves each change. */
+function wireAlertPrefs(root) {
+  const prefs = loadPrefs();
+
+  root.querySelectorAll("[data-prayer-toggle]").forEach((input) => {
+    const key = input.dataset.prayerToggle;
+    input.checked = prefs.prayers[key] !== false;
+    input.addEventListener("change", () => updatePrefs({ prayers: { [key]: input.checked } }));
+  });
+
+  const offset = root.querySelector("[data-alert-offset]");
+  offset.value = String(prefs.offsetMinutes);
+  offset.addEventListener("change", () => {
+    const value = Math.min(60, Math.max(-60, Math.round(Number(offset.value) || 0)));
+    offset.value = String(value);
+    updatePrefs({ offsetMinutes: value });
+  });
+
+  const quranEnabled = root.querySelector("[data-alert-quran-enabled]");
+  const quranTime = root.querySelector("[data-alert-quran-time]");
+  quranEnabled.checked = prefs.quran.enabled;
+  quranTime.value = prefs.quran.time;
+  quranEnabled.addEventListener("change", () => updatePrefs({ quran: { enabled: quranEnabled.checked } }));
+  quranTime.addEventListener("change", () => {
+    if (quranTime.value) updatePrefs({ quran: { time: quranTime.value } });
+  });
+
+  const morning = root.querySelector("[data-alert-adhkar-morning]");
+  const evening = root.querySelector("[data-alert-adhkar-evening]");
+  const delay = root.querySelector("[data-alert-adhkar-delay]");
+  morning.checked = prefs.adhkar.morningEnabled;
+  evening.checked = prefs.adhkar.eveningEnabled;
+  delay.value = String(prefs.adhkar.minutesAfterPrayer);
+  morning.addEventListener("change", () => updatePrefs({ adhkar: { morningEnabled: morning.checked } }));
+  evening.addEventListener("change", () => updatePrefs({ adhkar: { eveningEnabled: evening.checked } }));
+  delay.addEventListener("change", () => {
+    const value = Math.min(120, Math.max(0, Math.round(Number(delay.value) || 0)));
+    delay.value = String(value);
+    updatePrefs({ adhkar: { minutesAfterPrayer: value } });
+  });
+
+  const friday = root.querySelector("[data-alert-friday-enabled]");
+  const jumuah = root.querySelector("[data-alert-jumuah]");
+  const jumuahHint = root.querySelector("[data-alert-jumuah-hint]");
+  const showJumuahHint = (time) => {
+    jumuahHint.textContent = time
+      ? "The Friday reminder is set for one hour before this time."
+      : "Set your Jumu'ah time to turn on the Friday reminder.";
+  };
+  friday.checked = prefs.friday.enabled;
+  jumuah.value = prefs.friday.jumuahTime || "";
+  showJumuahHint(prefs.friday.jumuahTime);
+  friday.addEventListener("change", () => updatePrefs({ friday: { enabled: friday.checked } }));
+  jumuah.addEventListener("change", () => {
+    const time = jumuah.value || null;
+    updatePrefs({ friday: { jumuahTime: time } });
+    showJumuahHint(time);
+  });
 }
 
 export function initSalah(root) {
@@ -438,6 +528,8 @@ export function initSalah(root) {
       notificationManager.disable();
     }
   });
+
+  wireAlertPrefs(root);
 
   const muadhinSelect = root.querySelector("[data-salah-muadhin]");
   if (muadhinSelect) {
