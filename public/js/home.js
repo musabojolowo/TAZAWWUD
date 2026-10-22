@@ -129,6 +129,7 @@ function renderExplore() {
     { view: "tasbih", icon: "touch_app", label: "Tasbih" },
     { view: "mosque", icon: "mosque", label: "Mosque" },
     { view: "stories", icon: "auto_stories", label: "Stories" },
+    { view: "bookmarks", icon: "bookmark", label: "Bookmarks" },
   ];
   return `
     <section class="home-quick-access" aria-labelledby="home-quick-access-heading">

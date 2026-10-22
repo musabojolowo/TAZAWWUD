@@ -30,7 +30,7 @@ export const appState = {
 // "reader" and "mushaf" are reachable (Surah tapped from the list, or the
 // switch-view links) but have no nav link of their own — their nav-highlight
 // is treated the same as "quran" (see NAV_GROUP).
-const VALID_VIEWS = ["home", "quran", "sunnah", "salah", "qiblah", "calendar", "tasbih", "stories", "admin", "dua", "names99", "mosque", "reader", "mushaf"];
+const VALID_VIEWS = ["home", "quran", "sunnah", "salah", "qiblah", "calendar", "tasbih", "stories", "admin", "dua", "names99", "mosque", "reader", "mushaf", "bookmarks"];
 const NAV_GROUP = { reader: "quran", mushaf: "quran" };
 
 let quranModulePromise = null;
@@ -117,6 +117,12 @@ let duaModulePromise = null;
 function loadHisnModule() {
   if (!duaModulePromise) duaModulePromise = import("/js/hisn.js");
   return duaModulePromise;
+}
+
+let bookmarksModulePromise = null;
+function loadBookmarksModule() {
+  if (!bookmarksModulePromise) bookmarksModulePromise = import("/js/bookmarks-view.js");
+  return bookmarksModulePromise;
 }
 
 let names99ModulePromise = null;
@@ -342,6 +348,13 @@ function showView(viewName) {
       .catch((error) => console.error("[TAZAWWUD] Failed to load Dua & Dhikr:", error));
   }
 
+  if (viewName === "bookmarks") {
+    const bookmarksRootEl = document.getElementById("bookmarks-root");
+    loadBookmarksModule()
+      .then(({ initBookmarks }) => initBookmarks(bookmarksRootEl))
+      .catch((error) => console.error("[TAZAWWUD] Failed to load Bookmarks:", error));
+  }
+
   if (viewName === "names99") {
     const names99RootEl = document.getElementById("names99-root");
     loadNames99Module()
@@ -397,6 +410,17 @@ function openSurah(surahNumber) {
   loadMushafModule()
     .then(({ openSurahInMushaf }) => openSurahInMushaf(mushafRootEl, surahNumber))
     .catch((error) => console.error("[TAZAWWUD] Failed to load Mushaf module:", error));
+}
+
+function scrollToAyahWhenReady(ayahNumber, attemptsLeft = 20) {
+  const element = document.getElementById(`ayah-${ayahNumber}`);
+  if (element) {
+    element.scrollIntoView({ block: "center" });
+    return;
+  }
+  if (attemptsLeft > 0) {
+    setTimeout(() => scrollToAyahWhenReady(ayahNumber, attemptsLeft - 1), 250);
+  }
 }
 
 /** Opens the old verse-card reader for a single Surah (still fully available). */
@@ -462,6 +486,14 @@ function initRouter() {
   document.getElementById("reader-switch-to-mushaf-btn")?.addEventListener("click", () => {
     const surahNumber = document.getElementById("reader-content")?.dataset.currentSurah;
     openSurah(Number(surahNumber) || 1);
+  });
+
+  // A bookmark tap asks for one surah at one ayah. The reader renders asynchronously,
+  // so the ayah is scrolled to once its element exists.
+  window.addEventListener("tazawwud:open-surah", (event) => {
+    const { surahNumber, ayahNumber } = event.detail || {};
+    openSurahInReader(Number(surahNumber) || 1);
+    if (ayahNumber) scrollToAyahWhenReady(Number(ayahNumber));
   });
 
   const hash = window.location.hash.replace("#", "");
