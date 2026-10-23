@@ -408,6 +408,27 @@ function initDailyContentAdmin(root) {
 // Entry point
 // ----------------------------------------------------------------------------
 
+const ADMIN_CHECK_LIMIT_MS = 12000;
+
+/** Rejects if the promise does not settle within ms, so the page cannot wait forever. */
+function withLimit(promise, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Admin access check timed out.")), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
+function renderAccessUnknown(container) {
+  container.innerHTML = `
+    <div class="stories-status stories-status--error">
+      Couldn't confirm admin access. Check your connection, then reload this page.
+    </div>
+  `;
+}
+
 async function renderForUser(container, uid) {
   const generation = ++accessCheckGeneration;
   if (listenerAttached) {
@@ -421,14 +442,21 @@ async function renderForUser(container, uid) {
   }
 
   let isAdmin = false;
+  let accessUnknown = false;
   try {
-    const snapshot = await get(ref(db, `admins/${uid}`));
+    const snapshot = await withLimit(get(ref(db, `admins/${uid}`)), ADMIN_CHECK_LIMIT_MS);
     isAdmin = snapshot.val() === true;
   } catch (error) {
+    accessUnknown = true;
     console.error("[TAZAWWUD] Admin: could not check admin status:", error);
   }
 
   if (generation !== accessCheckGeneration) return;
+
+  if (accessUnknown) {
+    renderAccessUnknown(container);
+    return;
+  }
 
   if (!isAdmin) {
     renderNotAdmin(container, uid);

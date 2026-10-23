@@ -90,8 +90,12 @@
       <section class="settings-section" aria-labelledby="settings-links-heading">
         <h3 id="settings-links-heading" class="settings-section__heading">Prayer &amp; Qur'an</h3>
         <button type="button" class="settings-row-btn" data-goto-view="salah">
+          <span class="material-symbols-rounded icon" aria-hidden="true">location_on</span>
+          <span>Prayer &amp; Location</span>
+        </button>
+        <button type="button" class="settings-row-btn" data-goto-view="notifications">
           <span class="material-symbols-rounded icon" aria-hidden="true">notifications</span>
-          <span>Adhan, Notifications &amp; Location</span>
+          <span>Notifications &amp; Adhan</span>
         </button>
         <button type="button" class="settings-row-btn" data-goto-view="quran">
           <span class="material-symbols-rounded icon" aria-hidden="true">translate</span>
@@ -103,10 +107,6 @@
         <h3 id="settings-tools-heading" class="settings-section__heading">Tools &amp; Features</h3>
         <h4 class="settings-subheading">Offline Content</h4>
         <p id="offline-status" class="settings-note">Checking…</p>
-        <button type="button" class="settings-row-btn" data-goto-view="admin">
-          <span class="material-symbols-rounded icon" aria-hidden="true">admin_panel_settings</span>
-          <span>Stories &amp; Daily Admin</span>
-        </button>
       </section>
 
       <section class="settings-section" aria-labelledby="settings-reminders-heading">
@@ -313,6 +313,18 @@
       <div id="dua-root" class="dua-root">
         <div class="stories-status">Loading Dua &amp; Dhikr…</div>
       </div>
+    </section>
+
+    <section id="view-notifications" class="view" data-view-panel="notifications" hidden>
+      <div class="salah-preferences">
+        <h2 class="view-header__title">Notifications &amp; Adhan</h2>
+        <p class="view-header__subtitle">Prayer alerts, the Adhan and reminders. These keep working when the app is closed on the Android app.</p>
+      </div>
+      <div id="notifications-root" class="notifications-root"></div>
+    </section>
+
+    <section id="view-bookmarks" class="view" data-view-panel="bookmarks" hidden>
+      <div id="bookmarks-root" class="bookmarks-root"></div>
     </section>
 
     <section id="view-names99" class="view" data-view-panel="names99" hidden>

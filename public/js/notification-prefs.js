@@ -13,6 +13,8 @@
 //  - tazawwud:notifications-fired — alert ids already shown today.
 // ============================================================================
 
+import { notificationPermissionGranted, showNativeAlert, syncNativeSchedule } from "./native-bridge.js";
+
 export const PREFS_KEY = "tazawwud:notification-prefs";
 export const LEGACY_MASTER_KEY = "tazawwud:prayer-notifications-enabled";
 export const FIRED_KEY = "tazawwud:notifications-fired";
@@ -119,6 +121,7 @@ export function savePrefs(prefs, storage = localStorage) {
   const clean = mergePrefs(prefs);
   storage.setItem(PREFS_KEY, JSON.stringify(clean));
   storage.setItem(LEGACY_MASTER_KEY, String(clean.master));
+  syncNativeSchedule();
   return clean;
 }
 
@@ -250,7 +253,8 @@ export function claimOnce(id, now = new Date(), storage = localStorage) {
  * service worker is not ready in time. Resolves to false if permission is absent.
  */
 export async function displayAlert({ title, body, tag, url = "/#home" }) {
-  if (typeof Notification === "undefined" || Notification.permission !== "granted") return false;
+  if (!(await notificationPermissionGranted())) return false;
+  if (await showNativeAlert({ title, body, tag, url })) return true;
   const options = { body, tag, icon: "/icons/icon-192.png", data: { url } };
   try {
     if (typeof navigator !== "undefined" && navigator.serviceWorker) {

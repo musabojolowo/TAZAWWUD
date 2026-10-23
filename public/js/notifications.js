@@ -7,6 +7,7 @@
 // ============================================================================
 
 import { loadPrefs, savePrefs, claimOnce, displayAlert, parseMinute } from "./notification-prefs.js";
+import { notificationApiAvailable, notificationPermissionSync, requestNotificationPermission, inNativeApp } from "./native-bridge.js";
 
 const NOTIFICATION_SETTINGS_KEY = "tazawwud:prayer-notifications-enabled";
 const MUADHIN_SETTINGS_KEY = "tazawwud:muadhin";
@@ -116,7 +117,7 @@ function getSelectedMuadhin() {
 // Exported for reuse by reminders.js (same browser-support check, same
 // "what day is it" key format — not duplicated there).
 export function isSupported() {
-  return "Notification" in window;
+  return notificationApiAvailable();
 }
 
 export function todayKey() {
@@ -235,7 +236,7 @@ async function playSelectedAudio(audio, audioContext, option = getSelectedMuadhi
 }
 
 function showPrayerNotification(prayer) {
-  if (!isSupported() || Notification.permission !== "granted") return;
+  if (!isSupported()) return;
   displayAlert({
     title: `${prayer.name} - TAZAWWUD`,
     body: `It is time for ${prayer.name} prayer (${prayer.arabic}).`,
@@ -309,6 +310,8 @@ export function createNotificationManager(root) {
   }
 
   function startTimer() {
+    // Inside the Android app the native scheduler sends every alert, so the page must not.
+    if (inNativeApp()) return;
     if (timerId !== null) return;
     checkPrayerTimes();
     timerId = window.setInterval(checkPrayerTimes, 15000);
@@ -329,7 +332,7 @@ export function createNotificationManager(root) {
     // Attempt to unlock audio directly during this user gesture before the
     // permission prompt yields control back to the browser.
     unlockAudio(audio, getAudioContext());
-    const permission = await Notification.requestPermission();
+    const permission = await requestNotificationPermission();
     if (permission !== "granted") {
       writeEnabled(false);
       stopTimer();
@@ -355,7 +358,22 @@ export function createNotificationManager(root) {
   }
 
   function isEnabled() {
-    return readEnabled() && isSupported() && Notification.permission === "granted";
+    return readEnabled() && isSupported() && notificationPermissionSync();
+  }
+
+  /** Shows the status that matches the current state, without changing anything. */
+  function refreshStatus() {
+    if (isEnabled()) {
+      renderStatus(root, "Prayer notifications are enabled.");
+    } else if (readEnabled() && isSupported() && !notificationPermissionSync()) {
+      renderStatus(root, "Notification permission was not granted.", true);
+    } else {
+      renderStatus(root, "Prayer notifications are disabled.");
+    }
+  }
+
+  function showStatus(message, isError = false) {
+    renderStatus(root, message, isError);
   }
 
   /** Switches which recording plays for the Adhan/chime, and persists the choice. */
@@ -392,13 +410,15 @@ export function createNotificationManager(root) {
     audioContext?.close().catch(() => {});
   }
 
-  if (readEnabled() && isSupported() && Notification.permission === "granted") {
+  if (readEnabled() && isSupported() && notificationPermissionSync()) {
     startTimer();
   }
 
   return {
     enable,
     disable,
+    refreshStatus,
+    showStatus,
     destroy,
     isEnabled,
     setPrayerTimes,

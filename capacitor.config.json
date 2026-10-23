@@ -1,0 +1,8 @@
+{
+  "appId": "com.tazawwud.app",
+  "appName": "TAZAWWUD",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https"
+  }
+}

@@ -101,8 +101,8 @@ function renderDetail(container, story, stories) {
   container.scrollIntoView?.({ block: "start" });
 }
 
-function handleSnapshot(container, snapshot) {
-  const raw = snapshot.val() || {};
+function handleSnapshot(container, data) {
+  const raw = data || {};
   latestStories = Object.entries(raw)
     .map(([id, story]) => ({ id, ...story }))
     .filter((story) => story.published === true)
@@ -117,24 +117,42 @@ function handleSnapshot(container, snapshot) {
 
 /** Stories are public to read. Only admins can add, edit or delete them, and
  *  the database rules enforce that on writes (see admin.js for the CMS). */
-export function initStories(container) {
+// Stories are read with a plain web request instead of the live connection. The live
+// connection stalled on some phones with no error; the plain request does not depend on it.
+const STORIES_URL = "https://tazawwud-4028b-default-rtdb.firebaseio.com/stories.json";
+const LOAD_LIMIT_MS = 15000;
+
+async function fetchStories() {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LOAD_LIMIT_MS);
+  try {
+    const response = await fetch(STORIES_URL, { signal: controller.signal, cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function renderLoadFailed(container) {
+  container.innerHTML = `
+    <div class="stories-status stories-status--error">
+      Couldn't load Stories. Check your connection, then try again.
+      <div><button type="button" class="salah-button" data-stories-retry>Try again</button></div>
+    </div>
+  `;
+  container.querySelector("[data-stories-retry]")?.addEventListener("click", () => initStories(container));
+}
+
+export async function initStories(container) {
   if (!container) return;
   renderLoading(container);
-
-  if (listenerAttached) off(storiesRef);
-  onValue(
-    storiesRef,
-    (snapshot) => handleSnapshot(container, snapshot),
-    (error) => {
-      console.error("[TAZAWWUD] Failed to load Stories:", error);
-      container.innerHTML = `
-        <div class="stories-status stories-status--error">
-          Couldn't load Stories right now. Please check your connection and try again.
-        </div>
-      `;
-    }
-  );
-  listenerAttached = true;
+  try {
+    handleSnapshot(container, await fetchStories());
+  } catch (error) {
+    console.error("[TAZAWWUD] Failed to load Stories:", error);
+    renderLoadFailed(container);
+  }
 }
 
 /** Detaches the live listener — call when leaving the Stories view. */

@@ -19,6 +19,7 @@
 // ============================================================================
 
 import { isSupported, todayKey } from "./notifications.js";
+import { notificationApiAvailable, notificationPermissionSync, requestNotificationPermission, inNativeApp } from "./native-bridge.js";
 import { loadPrefs, buildSchedule, claimOnce, displayAlert } from "./notification-prefs.js";
 import { getPrayerSnapshot } from "./salah.js";
 
@@ -101,7 +102,7 @@ export function onRemindersChanged(callback) {
 }
 
 function showReminderNotification(reminder) {
-  if (!isSupported() || Notification.permission !== "granted") return;
+  if (!isSupported() || !notificationPermissionSync()) return;
   displayAlert({
     title: `${reminder.label} — TAZAWWUD`,
     body: "This is your daily reminder.",
@@ -155,7 +156,7 @@ function checkBuiltInReminders(now) {
 }
 
 async function checkReminders() {
-  if (!isSupported() || Notification.permission !== "granted") return;
+  if (!isSupported() || !notificationPermissionSync()) return;
   await refreshScheduleTimings();
   const now = new Date();
   checkBuiltInReminders(now);
@@ -175,17 +176,19 @@ async function checkReminders() {
 /** Requests Notification permission, for the "enable reminders" UI action. */
 export async function requestPermission() {
   if (!isSupported()) return false;
-  if (Notification.permission === "granted") return true;
-  const result = await Notification.requestPermission();
+  if (notificationPermissionSync()) return true;
+  const result = await requestNotificationPermission();
   return result === "granted";
 }
 
 export function permissionGranted() {
-  return isSupported() && Notification.permission === "granted";
+  return isSupported() && notificationPermissionSync();
 }
 
 /** Starts the background check. Safe to call multiple times (no-op if already running). */
 export function startReminders() {
+  // Inside the Android app the native scheduler sends these reminders, so the page must not.
+  if (inNativeApp()) return;
   if (!isSupported() || timerId !== null) return;
   checkReminders();
   timerId = window.setInterval(checkReminders, CHECK_INTERVAL_MS);

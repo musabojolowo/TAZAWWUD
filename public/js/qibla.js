@@ -7,6 +7,7 @@
 // ============================================================================
 
 import { getPositionWithFallback, describeLocationError } from "./geo.js";
+import { locator } from "./native-bridge.js";
 import { magneticDeclination } from "./magnetic.js";
 
 const KAABA = { latitude: 21.422487, longitude: 39.826206 };
@@ -237,7 +238,7 @@ export function initQibla(root) {
   }
 
   locationButton.addEventListener("click", () => {
-    if (!navigator.geolocation) {
+    if (!navigator.geolocation && !locator()) {
       renderStatus(root, "Location is unavailable in this browser. Unable to calculate Qiblah.", true);
       return;
     }

@@ -1,0 +1,22 @@
+{
+  "name": "tazawwud",
+  "private": true,
+  "version": "1.0.0",
+  "description": "TAZAWWUD web app and Android shell (web source: public/)",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0",
+    "@capacitor/geolocation": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0"
+  }
+}

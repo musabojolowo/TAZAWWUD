@@ -141,3 +141,37 @@ export async function getBookmarksForSurah(surahNumber) {
 
   return marked;
 }
+
+/**
+ * Every saved ayah bookmark for the current user, newest first, as { surah, ayah, ts }.
+ * Reads this phone's copy, then the cloud copy when reachable. Never creates a session
+ * just to list bookmarks: if no one is signed in, only the phone's copy is shown.
+ */
+export async function listBookmarks() {
+  let user = null;
+  try {
+    user = await ensureSignedIn();
+  } catch (error) {
+    console.warn("[TAZAWWUD] Bookmarks: no session, showing this phone's bookmarks only:", error.message);
+  }
+  const scope = user?.uid || "offline";
+  const merged = new Map();
+  const add = (entry) => {
+    const surah = Number(entry?.surah);
+    const ayah = Number(entry?.ayah);
+    if (Number.isInteger(surah) && Number.isInteger(ayah)) {
+      merged.set(bookmarkKey(surah, ayah), { surah, ayah, ts: Number(entry.ts) || 0 });
+    }
+  };
+  Object.values(readBookmarks(scope) || {}).forEach(add);
+
+  if (user) {
+    try {
+      const snapshot = await get(ref(db, `bookmarks/${user.uid}`));
+      if (snapshot.exists()) Object.values(snapshot.val()).forEach(add);
+    } catch (error) {
+      console.warn("[TAZAWWUD] Could not fetch cloud bookmarks, showing this phone's copy:", error.message);
+    }
+  }
+  return [...merged.values()].sort((a, b) => b.ts - a.ts);
+}

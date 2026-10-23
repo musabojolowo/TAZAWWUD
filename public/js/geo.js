@@ -10,7 +10,10 @@
 // city-level location, and low accuracy gets a fix much more reliably on phones.
 // ============================================================================
 
+import { getNativePosition, locator } from "./native-bridge.js";
+
 export function getPosition({ timeout = 15000, enableHighAccuracy = false, maximumAge = 300000 } = {}) {
+  if (locator()) return getNativePosition({ timeout, enableHighAccuracy, maximumAge });
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(Object.assign(new Error("Geolocation is unavailable in this browser."), { code: 0 }));
