@@ -6,7 +6,7 @@
 // Bump CACHE_VERSION whenever cached assets change, to bust old caches.
 // ============================================================================
 
-const CACHE_VERSION = "tazawwud-shell-v64";
+const CACHE_VERSION = "tazawwud-shell-v67";
 
 const APP_SHELL_ASSETS = [
   "/",
@@ -37,6 +37,7 @@ const APP_SHELL_ASSETS = [
   "/js/error-boundary.js",
   "/js/idb-cache.js",
   "/js/geo.js",
+  "/js/native-bridge.js",
   "/js/bookmarks-view.js",
   "/js/notification-prefs.js",
   "/js/magnetic.js",

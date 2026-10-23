@@ -12,6 +12,7 @@
 // ============================================================================
 
 import { escapeHtml } from "./html-utils.js";
+import { locator } from "./native-bridge.js";
 import { getPositionWithFallback, describeLocationError } from "./geo.js";
 
 const SALAH_LOCATION_KEY = "tazawwud:salah-location";
@@ -58,7 +59,7 @@ function showStatus(root, message, isError = false) {
 }
 
 function nearMe(root) {
-  if (!navigator.geolocation) {
+  if (!navigator.geolocation && !locator()) {
     showStatus(root, "Your browser can't share your location. Type a place below instead.", true);
     return;
   }

@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { createNotificationManager } from "./notifications.js";
+import { locator, scheduleTestAdhan, syncNativeSchedule } from "./native-bridge.js";
 import { getPositionWithFallback, describeLocationError } from "./geo.js";
 import { loadPrefs, updatePrefs } from "./notification-prefs.js";
 import { estimatePrayerTimes, fetchJsonWithFallback, renderFallbackNotice } from "./error-boundary.js";
@@ -63,6 +64,7 @@ function saveSettings(settings) {
 
 // Lets the global reminder scheduler recalculate prayer times straight away.
 function announcePrayerInputsChanged() {
+  syncNativeSchedule();
   window.dispatchEvent(new Event("tazawwud:prayer-inputs-changed"));
 }
 
@@ -176,8 +178,9 @@ function renderShell(root) {
           <input id="salah-alert-jumuah" class="salah-select" type="time" data-alert-jumuah />
           <p class="salah-preferences__hint" data-alert-jumuah-hint></p>
         </div>
+        <button type="button" class="salah-button salah-button--secondary" data-test-background-adhan>Test background Adhan (in 2 minutes)</button>
         <p class="salah-notification__status" data-notification-status role="status">
-          Notifications are disabled.
+          Checking notification status…
         </p>
       </div>
     </section>
@@ -331,7 +334,7 @@ function reloadCurrentLocation(root) {
 }
 
 function requestLocation(root) {
-  if (!navigator.geolocation) {
+  if (!navigator.geolocation && !locator()) {
     setMessage(root, "Location is unavailable in this browser. You can select your city instead.", true);
     return;
   }
@@ -519,7 +522,22 @@ export function initSalah(root) {
   notificationManager = createNotificationManager(root);
 
   const notificationToggle = root.querySelector("[data-salah-notifications]");
-  notificationToggle.checked = notificationManager.isEnabled();
+  // The native permission arrives a moment after the page draws, so refresh when it does.
+  const refreshNotificationControls = () => {
+    notificationToggle.checked = notificationManager.isEnabled();
+    notificationManager.refreshStatus();
+  };
+  window.addEventListener("tazawwud:notification-permission-changed", refreshNotificationControls);
+  refreshNotificationControls();
+
+  root.querySelector("[data-test-background-adhan]").addEventListener("click", async () => {
+    const scheduled = await scheduleTestAdhan(120);
+    if (scheduled) {
+      notificationManager.showStatus("Test Adhan in 2 minutes. You can close the app now.");
+    } else {
+      notificationManager.showStatus("The background test works in the Android app only.", true);
+    }
+  });
   notificationToggle.addEventListener("change", async (event) => {
     if (event.currentTarget.checked) {
       const enabled = await notificationManager.enable();
