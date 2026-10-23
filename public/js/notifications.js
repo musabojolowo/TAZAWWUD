@@ -7,7 +7,7 @@
 // ============================================================================
 
 import { loadPrefs, savePrefs, claimOnce, displayAlert, parseMinute } from "./notification-prefs.js";
-import { notificationApiAvailable, notificationPermissionSync, requestNotificationPermission } from "./native-bridge.js";
+import { notificationApiAvailable, notificationPermissionSync, requestNotificationPermission, inNativeApp } from "./native-bridge.js";
 
 const NOTIFICATION_SETTINGS_KEY = "tazawwud:prayer-notifications-enabled";
 const MUADHIN_SETTINGS_KEY = "tazawwud:muadhin";
@@ -310,6 +310,8 @@ export function createNotificationManager(root) {
   }
 
   function startTimer() {
+    // Inside the Android app the native scheduler sends every alert, so the page must not.
+    if (inNativeApp()) return;
     if (timerId !== null) return;
     checkPrayerTimes();
     timerId = window.setInterval(checkPrayerTimes, 15000);

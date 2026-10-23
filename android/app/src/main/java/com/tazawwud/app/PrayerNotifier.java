@@ -13,12 +13,14 @@ import android.os.Build;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
-/** Channels and notifications for the Adhan alert and the persistent countdown. */
+/** Channels and notifications for the Adhan, the reminders and the countdown card. */
 final class PrayerNotifier {
     static final String ADHAN_CHANNEL = "adhan";
+    static final String REMINDER_CHANNEL = "reminders";
     static final String COUNTDOWN_CHANNEL = "countdown";
     static final int COUNTDOWN_ID = 9001;
     private static final int ADHAN_BASE_ID = 9100;
+    private static final int REMINDER_BASE_ID = 9200;
 
     private PrayerNotifier() {}
 
@@ -37,6 +39,12 @@ final class PrayerNotifier {
             .build();
         adhan.setSound(sound, attributes);
         manager.createNotificationChannel(adhan);
+
+        // Reminders use the normal notification sound.
+        NotificationChannel reminders = new NotificationChannel(REMINDER_CHANNEL,
+            "Qur'an, Adhkar and Friday reminders", NotificationManager.IMPORTANCE_HIGH);
+        reminders.setDescription("Qur'an, Adhkar and Jumu'ah reminders");
+        manager.createNotificationChannel(reminders);
 
         // The countdown channel is silent and cannot be swiped to make a sound.
         NotificationChannel countdown = new NotificationChannel(COUNTDOWN_CHANNEL,
@@ -64,7 +72,25 @@ final class PrayerNotifier {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
         }
-        notify(context, ADHAN_BASE_ID + prayer.hashCode() % 50, builder.build());
+        notify(context, ADHAN_BASE_ID + Math.abs(prayer.hashCode() % 50), builder.build());
+    }
+
+    static void showReminder(Context context, String title, String body, String tag) {
+        createChannels(context);
+        Intent open = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+        PendingIntent tap = PendingIntent.getActivity(context, 0, open,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, REMINDER_CHANNEL)
+            .setSmallIcon(context.getApplicationInfo().icon)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(tap);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
+        }
+        notify(context, REMINDER_BASE_ID + Math.abs((tag == null ? "" : tag).hashCode() % 50), builder.build());
     }
 
     static void notify(Context context, int id, android.app.Notification notification) {

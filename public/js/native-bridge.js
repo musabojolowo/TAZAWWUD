@@ -141,22 +141,6 @@ export async function getNativePosition({ timeout = 15000, enableHighAccuracy = 
 }
 
 /**
- * Asks the native side to ring a test Adhan after a short delay, so background
- * delivery can be checked before the next real prayer. False outside the app.
- */
-export async function scheduleTestAdhan(seconds = 120) {
-  const bridge = plugin("PrayerBridge");
-  if (!bridge) return false;
-  try {
-    await bridge.testAdhan({ seconds });
-    return true;
-  } catch (error) {
-    console.warn("[TAZAWWUD] Test Adhan not scheduled:", error?.message);
-    return false;
-  }
-}
-
-/**
  * Sends the saved prayer settings, location and notification preferences to the native
  * side, which sets the Adhan alarms and the countdown card. A no-op in a browser.
  */
@@ -175,6 +159,9 @@ export function syncNativeSchedule() {
       master: prefs.master !== false,
       offsetMinutes: Number(prefs.offsetMinutes) || 0,
       prayers: prefs.prayers || {},
+      quran: prefs.quran || {},
+      adhkar: prefs.adhkar || {},
+      friday: prefs.friday || {},
     }).catch((error) => console.warn("[TAZAWWUD] Native schedule not saved:", error?.message));
   } catch (error) {
     console.warn("[TAZAWWUD] Native schedule could not be read:", error?.message);

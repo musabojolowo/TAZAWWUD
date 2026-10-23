@@ -14,6 +14,7 @@
 // ============================================================================
 
 import { initThemeToggle } from "./theme.js";
+import "./notification-hub.js";
 import { isOffline } from "./storage.js";
 // Firebase-backed features (account, cloud sync, sidebar, reminders) are loaded
 // by initFirebaseFeatures() so a Firebase failure cannot stop navigation.
@@ -30,7 +31,7 @@ export const appState = {
 // "reader" and "mushaf" are reachable (Surah tapped from the list, or the
 // switch-view links) but have no nav link of their own — their nav-highlight
 // is treated the same as "quran" (see NAV_GROUP).
-const VALID_VIEWS = ["home", "quran", "sunnah", "salah", "qiblah", "calendar", "tasbih", "stories", "admin", "dua", "names99", "mosque", "reader", "mushaf", "bookmarks"];
+const VALID_VIEWS = ["home", "quran", "sunnah", "salah", "qiblah", "calendar", "tasbih", "stories", "admin", "dua", "names99", "mosque", "reader", "mushaf", "bookmarks", "notifications"];
 const NAV_GROUP = { reader: "quran", mushaf: "quran" };
 
 let quranModulePromise = null;
@@ -117,6 +118,12 @@ let duaModulePromise = null;
 function loadHisnModule() {
   if (!duaModulePromise) duaModulePromise = import("/js/hisn.js");
   return duaModulePromise;
+}
+
+let notificationsModulePromise = null;
+function loadNotificationsModule() {
+  if (!notificationsModulePromise) notificationsModulePromise = import("/js/notifications-view.js");
+  return notificationsModulePromise;
 }
 
 let bookmarksModulePromise = null;
@@ -346,6 +353,13 @@ function showView(viewName) {
         onBack: () => navigateTo("home"),
       }))
       .catch((error) => console.error("[TAZAWWUD] Failed to load Dua & Dhikr:", error));
+  }
+
+  if (viewName === "notifications") {
+    const notificationsRootEl = document.getElementById("notifications-root");
+    loadNotificationsModule()
+      .then(({ initNotifications }) => initNotifications(notificationsRootEl))
+      .catch((error) => console.error("[TAZAWWUD] Failed to load Notifications:", error));
   }
 
   if (viewName === "bookmarks") {

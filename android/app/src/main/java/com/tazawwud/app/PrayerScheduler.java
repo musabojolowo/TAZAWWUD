@@ -6,17 +6,20 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 
-import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.List;
 
 import org.json.JSONObject;
 
-/** Works out the next 7 days of prayer alarms and sets them as exact alarms. */
+/** Works out the next 7 days of alarms (prayers and reminders) and sets them as exact alarms. */
 final class PrayerScheduler {
     static final String[] PRAYERS = {"Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"};
     private static final int DAYS = 7;
-    private static final int MAX_CODES = DAYS * PRAYERS.length;
+    /** Prayer alarms use request codes 0..34. */
+    private static final int REMINDER_BASE = 40;
+    /** Reminders use 4 codes per day: Qur'an, morning Adhkar, evening Adhkar, Friday. */
+    private static final int MAX_CODES = REMINDER_BASE + DAYS * 4;
+    private static final long MINUTE = 60000L;
+    private static final long HOUR = 60 * MINUTE;
 
     private PrayerScheduler() {}
 
@@ -37,8 +40,8 @@ final class PrayerScheduler {
                     times = PrayerTimesApi.fetchDay(settings, day);
                     if (times != null) PrayerStore.saveDay(app, key, times.toString());
                 }
-                if (times == null) continue;
-                scheduleDay(app, settings, day, times, d);
+                if (times != null) scheduleDay(app, settings, day, times, d);
+                scheduleReminders(app, settings, day, times, d);
             }
             PrayerCountdownService.start(app);
         }).start();
@@ -47,25 +50,69 @@ final class PrayerScheduler {
     private static void scheduleDay(Context app, JSONObject settings, Calendar day, JSONObject times, int dayIndex) {
         JSONObject prayers = settings.optJSONObject("prayers");
         int offset = settings.optInt("offsetMinutes", 0);
-        long now = System.currentTimeMillis();
-        AlarmManager alarms = (AlarmManager) app.getSystemService(Context.ALARM_SERVICE);
-
         for (int i = 0; i < PRAYERS.length; i++) {
             String name = PRAYERS[i];
             if (prayers != null && !prayers.optBoolean(name, true)) continue;
-            long at = timeOn(day, times.optString(name, "")) + offset * 60000L;
-            if (at <= now) continue;
+            long base = clockOn(day, times.optString(name, ""));
+            if (base < 0) continue;
+            scheduleOne(app, dayIndex * PRAYERS.length + i, base + offset * MINUTE, name, null, null, null);
+        }
+    }
 
-            int code = dayIndex * PRAYERS.length + i;
-            Intent intent = new Intent(app, PrayerAlarmReceiver.class).putExtra("prayer", name);
-            PendingIntent pending = PendingIntent.getBroadcast(app, code, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-            if (Build.VERSION.SDK_INT >= 31 && !alarms.canScheduleExactAlarms()) {
-                // Exact alarms are not allowed yet: fall back to an approximate alarm.
-                alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending);
-            } else {
-                alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending);
+    /** Qur'an, Adhkar and Friday reminders, with the same times and wording as the web app. */
+    private static void scheduleReminders(Context app, JSONObject settings, Calendar day, JSONObject times, int dayIndex) {
+        int base = REMINDER_BASE + dayIndex * 4;
+
+        JSONObject quran = settings.optJSONObject("quran");
+        if (quran != null && quran.optBoolean("enabled", false)) {
+            long at = clockOn(day, quran.optString("time", ""));
+            if (at >= 0) scheduleOne(app, base, at, null,
+                "Qur'an reading - TAZAWWUD", "Time for your daily Qur'an reading.", "tazawwud-quran");
+        }
+
+        JSONObject adhkar = settings.optJSONObject("adhkar");
+        if (adhkar != null && times != null) {
+            long delay = adhkar.optInt("minutesAfterPrayer", 15) * MINUTE;
+            if (adhkar.optBoolean("morningEnabled", false)) {
+                long fajr = clockOn(day, times.optString("Fajr", ""));
+                if (fajr >= 0) scheduleOne(app, base + 1, fajr + delay, null,
+                    "Morning Adhkar - TAZAWWUD", "Time for your morning remembrance.", "tazawwud-adhkar-morning");
             }
+            if (adhkar.optBoolean("eveningEnabled", false)) {
+                long asr = clockOn(day, times.optString("Asr", ""));
+                if (asr >= 0) scheduleOne(app, base + 2, asr + delay, null,
+                    "Evening Adhkar - TAZAWWUD", "Time for your evening remembrance.", "tazawwud-adhkar-evening");
+            }
+        }
+
+        // Friday: one hour before Jumu'ah, on Fridays only, once a Jumu'ah time is set.
+        JSONObject friday = settings.optJSONObject("friday");
+        if (friday != null && friday.optBoolean("enabled", false) && day.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY) {
+            long jumuah = clockOn(day, friday.optString("jumuahTime", ""));
+            if (jumuah >= HOUR) scheduleOne(app, base + 3, jumuah - HOUR, null,
+                "Jumu'ah reminder - TAZAWWUD", "Jumu'ah is in one hour. Prepare for the Friday prayer.", "tazawwud-friday");
+        }
+    }
+
+    /** Sets one exact alarm. A prayer name gives the Adhan; a title gives a reminder. */
+    private static void scheduleOne(Context app, int code, long at, String prayer,
+                                    String title, String body, String tag) {
+        if (at <= System.currentTimeMillis()) return;
+        Intent intent = new Intent(app, PrayerAlarmReceiver.class);
+        if (prayer != null) intent.putExtra("prayer", prayer);
+        if (title != null) {
+            intent.putExtra("title", title);
+            intent.putExtra("body", body);
+            intent.putExtra("tag", tag);
+        }
+        PendingIntent pending = PendingIntent.getBroadcast(app, code, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        AlarmManager alarms = (AlarmManager) app.getSystemService(Context.ALARM_SERVICE);
+        if (Build.VERSION.SDK_INT >= 31 && !alarms.canScheduleExactAlarms()) {
+            // Exact alarms are not allowed yet: fall back to an approximate alarm.
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending);
+        } else {
+            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending);
         }
     }
 
@@ -97,21 +144,31 @@ final class PrayerScheduler {
             if (times == null) continue;
             for (String name : PRAYERS) {
                 if (prayers != null && !prayers.optBoolean(name, true)) continue;
-                long at = timeOn(day, times.optString(name, "")) + offset * 60000L;
+                long base = clockOn(day, times.optString(name, ""));
+                if (base < 0) continue;
+                long at = base + offset * MINUTE;
                 if (at > now && (best == null || at < (Long) best[1])) best = new Object[] {name, at};
             }
         }
         return best;
     }
 
-    private static long timeOn(Calendar day, String hhmm) {
-        if (hhmm.length() < 5) return 0L;
-        Calendar c = (Calendar) day.clone();
-        c.set(Calendar.HOUR_OF_DAY, Integer.parseInt(hhmm.substring(0, 2)));
-        c.set(Calendar.MINUTE, Integer.parseInt(hhmm.substring(3, 5)));
-        c.set(Calendar.SECOND, 0);
-        c.set(Calendar.MILLISECOND, 0);
-        return c.getTimeInMillis();
+    /** Milliseconds of HH:MM on the given day in local time, or -1 if the text is not a time. */
+    static long clockOn(Calendar day, String hhmm) {
+        if (hhmm == null || hhmm.length() < 5) return -1L;
+        try {
+            int hour = Integer.parseInt(hhmm.substring(0, 2));
+            int minute = Integer.parseInt(hhmm.substring(3, 5));
+            if (hour > 23 || minute > 59) return -1L;
+            Calendar c = (Calendar) day.clone();
+            c.set(Calendar.HOUR_OF_DAY, hour);
+            c.set(Calendar.MINUTE, minute);
+            c.set(Calendar.SECOND, 0);
+            c.set(Calendar.MILLISECOND, 0);
+            return c.getTimeInMillis();
+        } catch (NumberFormatException error) {
+            return -1L;
+        }
     }
 
     static String dateKey(Calendar c) {

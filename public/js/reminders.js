@@ -19,7 +19,7 @@
 // ============================================================================
 
 import { isSupported, todayKey } from "./notifications.js";
-import { notificationApiAvailable, notificationPermissionSync, requestNotificationPermission } from "./native-bridge.js";
+import { notificationApiAvailable, notificationPermissionSync, requestNotificationPermission, inNativeApp } from "./native-bridge.js";
 import { loadPrefs, buildSchedule, claimOnce, displayAlert } from "./notification-prefs.js";
 import { getPrayerSnapshot } from "./salah.js";
 
@@ -187,6 +187,8 @@ export function permissionGranted() {
 
 /** Starts the background check. Safe to call multiple times (no-op if already running). */
 export function startReminders() {
+  // Inside the Android app the native scheduler sends these reminders, so the page must not.
+  if (inNativeApp()) return;
   if (!isSupported() || timerId !== null) return;
   checkReminders();
   timerId = window.setInterval(checkReminders, CHECK_INTERVAL_MS);
