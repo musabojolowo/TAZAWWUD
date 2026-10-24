@@ -18,18 +18,3 @@ export function pageForAyah(detail, ayah) {
   const target = detail?.ayahs?.find((item) => item.numberInSurah === ayah);
   return Number.isInteger(target?.page) ? target.page : null;
 }
-
-/** Rows for the Contents panel: valid surahs only, in order, with the labels to show. */
-export function contentsEntries(surahs) {
-  return (surahs || [])
-    .filter((surah) => Number.isInteger(surah?.number) && surah.number >= 1 && surah.number <= 114)
-    .slice()
-    .sort((a, b) => a.number - b.number)
-    .map((surah) => ({
-      number: surah.number,
-      arabicName: String(surah.name ?? ""),
-      englishName: String(surah.englishName ?? `Surah ${surah.number}`),
-      translation: String(surah.englishNameTranslation ?? ""),
-      ayahCount: Number.isInteger(surah.numberOfAyahs) ? surah.numberOfAyahs : null,
-    }));
-}
