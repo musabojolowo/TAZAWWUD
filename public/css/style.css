@@ -3806,3 +3806,85 @@ button {
   font-size: 0.85rem;
   color: #b3261e;
 }
+
+/* Contents panel (Mushaf reader) */
+.reading-contents {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  overflow-y: auto;
+  background: #0f1f1a;
+  color: #e8f3ef;
+  padding: 16px;
+}
+.reading-contents[hidden] {
+  display: none;
+}
+.reading-contents__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.reading-contents__title {
+  margin: 0;
+  font-size: 1.2rem;
+}
+.reading-contents__status {
+  opacity: 0.8;
+}
+.reading-contents__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.reading-contents__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 8px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.reading-contents__num {
+  min-width: 2.2rem;
+  font-weight: 600;
+}
+.reading-contents__name {
+  flex: 1;
+}
+.reading-contents__name small {
+  display: block;
+  opacity: 0.7;
+}
+.reading-contents__arabic {
+  font-size: 1.3rem;
+}
+
+/* Material Symbols icon font, bundled (Apache License 2.0; see fonts/LICENSE-Apache-2.0.txt) */
+@font-face {
+  font-family: 'Material Symbols Rounded';
+  font-style: normal;
+  font-weight: 100 700;
+  font-display: block;
+  src: url('/fonts/material-symbols-outlined-latin-wght-normal.woff2') format('woff2');
+}
+:where(.material-symbols-rounded) {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'liga';
+}
