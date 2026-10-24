@@ -13,7 +13,13 @@ import android.os.Looper;
 
 import androidx.core.app.NotificationCompat;
 
-/** Keeps the silent "Next prayer" card in the notification shade, updated every minute. */
+/**
+ * Keeps the silent "Next prayer" card in the notification shade, updated every minute.
+ *
+ * Android requires a service started with startForegroundService() to call startForeground()
+ * within a few seconds. Every path below therefore shows a notification first, even when
+ * there are no prayer times yet, so the app is never killed for that reason.
+ */
 public class PrayerCountdownService extends Service {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = new Runnable() {
@@ -25,13 +31,19 @@ public class PrayerCountdownService extends Service {
         }
     };
 
+    /** Starts the card only when there are cached prayer times to show. */
     static void start(Context context) {
         if (PrayerStore.loadSettings(context) == null) return;
+        if (PrayerScheduler.nextPrayer(context) == null) return;
         Intent intent = new Intent(context, PrayerCountdownService.class);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent);
-        } else {
-            context.startService(intent);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent);
+            } else {
+                context.startService(intent);
+            }
+        } catch (RuntimeException error) {
+            // Android refused to start the service in the background: the card is simply not shown.
         }
     }
 
@@ -39,18 +51,34 @@ public class PrayerCountdownService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         PrayerNotifier.createChannels(this);
         Notification card = buildCard();
-        if (card == null) {
-            stopSelf();
-            return START_NOT_STICKY;
-        }
+        boolean hasPrayers = card != null;
+        if (!hasPrayers) card = placeholderCard();
+
+        // Must happen on every path, or Android stops the app.
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(PrayerNotifier.COUNTDOWN_ID, card, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         } else {
             startForeground(PrayerNotifier.COUNTDOWN_ID, card);
         }
+
+        if (!hasPrayers) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         handler.removeCallbacks(tick);
         handler.postDelayed(tick, 60000L);
         return START_STICKY;
+    }
+
+    private Notification placeholderCard() {
+        return new NotificationCompat.Builder(this, PrayerNotifier.COUNTDOWN_CHANNEL)
+            .setSmallIcon(getApplicationInfo().icon)
+            .setContentTitle("TAZAWWUD")
+            .setContentText("Prayer times will show here once loaded.")
+            .setOngoing(true)
+            .setSilent(true)
+            .setOnlyAlertOnce(true)
+            .build();
     }
 
     private Notification buildCard() {
