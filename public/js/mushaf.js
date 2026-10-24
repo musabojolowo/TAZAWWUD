@@ -25,7 +25,8 @@ import { db } from "./firebase-config.js";
 import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 import { fetchJsonWithFallback, renderFallbackNotice } from "./error-boundary.js";
 import { escapeHtml } from "./html-utils.js";
-import { validateJump, pageForAyah } from "./mushaf-jump.js";
+import { validateJump, pageForAyah, contentsEntries } from "./mushaf-jump.js";
+import { fetchSurahList } from "./quran.js";
 
 const API_BASE = "https://api.alquran.cloud/v1";
 const PAGE_COUNT = 604;
@@ -564,11 +565,62 @@ function wireGoto(container) {
   });
 }
 
-/** Contents: opens the Surah list. */
+/** Contents: a panel listing every Surah. Tapping one opens its verse view. */
 function wireContents(container) {
-  container.querySelector("#reading-contents-btn")?.addEventListener("click", () => {
-    window.location.hash = "#quran";
+  container.querySelector("#reading-contents-btn")?.addEventListener("click", () => openContents(container));
+}
+
+async function openContents(container) {
+  let panel = container.querySelector("#reading-contents");
+  if (panel) {
+    panel.hidden = false;
+    return;
+  }
+  panel = document.createElement("section");
+  panel.id = "reading-contents";
+  panel.className = "reading-contents";
+  panel.setAttribute("aria-label", "Contents");
+  panel.innerHTML = `
+    <div class="reading-contents__head">
+      <h2 class="reading-contents__title">Contents</h2>
+      <button type="button" class="reading-contents__close">Close</button>
+    </div>
+    <p class="reading-contents__status">Loading Surahs…</p>
+    <ol class="reading-contents__list"></ol>
+  `;
+  container.appendChild(panel);
+  panel.querySelector(".reading-contents__close").addEventListener("click", () => {
+    panel.hidden = true;
   });
+
+  try {
+    const rows = contentsEntries(await fetchSurahList());
+    panel.querySelector(".reading-contents__status").remove();
+    panel.querySelector(".reading-contents__list").innerHTML = rows.map((row) => `
+      <li>
+        <button type="button" class="reading-contents__item" data-surah="${row.number}">
+          <span class="reading-contents__num">${row.number}</span>
+          <span class="reading-contents__name">
+            ${escapeHtml(row.englishName)}
+            <small>${escapeHtml(row.translation)}${row.ayahCount != null ? ` · ${row.ayahCount} ayahs` : ""}</small>
+          </span>
+          <span class="reading-contents__arabic" lang="ar" dir="rtl">${escapeHtml(row.arabicName)}</span>
+        </button>
+      </li>
+    `).join("");
+    panel.querySelectorAll("[data-surah]").forEach((button) => {
+      button.addEventListener("click", () => {
+        panel.hidden = true;
+        window.dispatchEvent(new CustomEvent("tazawwud:open-surah", {
+          detail: { surahNumber: Number(button.dataset.surah) },
+        }));
+      });
+    });
+  } catch (error) {
+    console.error("[TAZAWWUD] Contents could not load Surahs:", error);
+    panel.querySelector(".reading-contents__status").textContent =
+      "Could not load the Surah list. Check your connection, then try again.";
+  }
 }
 
 function wireTopBarNav(container, pageNumber) {
