@@ -22,6 +22,7 @@
 
 import { toggleBookmark, getBookmarksForSurah } from "./bookmarks.js";
 import { fetchJsonWithFallback } from "./error-boundary.js";
+import { cachePutOrThrow } from "./idb-cache.js";
 import { escapeHtml } from "./html-utils.js";
 
 const API_BASE = "https://api.alquran.cloud/v1";
@@ -144,6 +145,22 @@ function normalizeAyahText(text, surahNumber, numberInSurah) {
 // ----------------------------------------------------------------------------
 
 /** Fetches the list of all 114 Surahs (metadata only). */
+/**
+ * Surah index for an offline download. Saved directly, so a failed save is raised
+ * (instead of being skipped) and the download can report it. The in-memory list is
+ * not trusted here: it may have been loaded without ever being saved.
+ */
+export async function fetchSurahListForDownload() {
+  const result = await fetchJsonWithFallback(SURAH_LIST_ENDPOINT, {
+    cacheKey: "quran:surah-index",
+    persistent: true,
+    validate: (payload) => payload?.code === 200 && Array.isArray(payload.data),
+  });
+  await cachePutOrThrow("api-cache:quran:surah-index", result.data);
+  cachedSurahs = result.data.data;
+  return cachedSurahs;
+}
+
 export async function fetchSurahList() {
   if (cachedSurahs) return cachedSurahs;
 
