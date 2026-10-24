@@ -61,11 +61,12 @@ function pad(n) {
 function formatCountdown(target) {
   const diffMs = target.getTime() - Date.now();
   if (diffMs <= 0) return "Now";
-  // Minutes only: the countdown changes once a minute, not once a second.
+  // Written as units, so it is clear: "6h 01m" or "45 min". Minutes only, so the screen
+  // changes once a minute, not once a second.
   const totalMinutes = Math.floor(diffMs / 60000);
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  return hours > 0 ? `${hours}:${pad(minutes)}` : `${minutes} min`;
+  return hours > 0 ? `${hours}h ${pad(minutes)}m` : `${minutes} min`;
 }
 
 function clearCountdown() {
@@ -298,8 +299,7 @@ function renderDashboard(root, snapshot) {
 function startCountdown(root, next) {
   const el = root.querySelector("[data-home-countdown]");
   if (!el) return;
-  // Checked every 15 seconds, but the text is only replaced when the minute changes,
-  // so the screen repaints about once a minute.
+  // Checked every 15 seconds, but the text is only replaced when the minute changes.
   countdownTimer = window.setInterval(() => {
     const remainingMs = next.target.getTime() - Date.now();
     if (remainingMs <= 0) {
