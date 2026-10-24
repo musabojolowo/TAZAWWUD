@@ -298,6 +298,8 @@ function renderDashboard(root, snapshot) {
 function startCountdown(root, next) {
   const el = root.querySelector("[data-home-countdown]");
   if (!el) return;
+  // Diagnostic: open the site with ?nocount=1 to switch the countdown off, to test whether it causes the shake.
+  if (new URLSearchParams(window.location.search).has("nocount")) return;
   countdownTimer = window.setInterval(() => {
     const remainingMs = next.target.getTime() - Date.now();
     if (remainingMs <= 0) {
