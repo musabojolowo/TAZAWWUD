@@ -22,6 +22,7 @@
 
 import { toggleBookmark, getBookmarksForSurah } from "./bookmarks.js";
 import { fetchJsonWithFallback } from "./error-boundary.js";
+import { loadLocalQuran, localArabic } from "./quran-local.js";
 import { escapeHtml } from "./html-utils.js";
 
 const API_BASE = "https://api.alquran.cloud/v1";
@@ -168,6 +169,8 @@ async function fetchSurahDetail(number, translationCode) {
     return cachedSurahDetails.get(cacheKey);
   }
 
+  // The bundled Tanzil text is used for the Arabic when it has loaded; the API is the fallback.
+  await loadLocalQuran();
   const editions = `quran-uthmani,${translationCode}`;
   const result = await fetchJsonWithFallback(`${API_BASE}/surah/${number}/editions/${editions}`, {
     cacheKey: `quran:surah:${number}:${translationCode}`,
@@ -190,7 +193,7 @@ async function fetchSurahDetail(number, translationCode) {
       globalNumber: ayah.number,
       page: ayah.page,
       juz: ayah.juz,
-      arabic: normalizeAyahText(ayah.text, number, ayah.numberInSurah),
+      arabic: localArabic(number, ayah.numberInSurah) ?? normalizeAyahText(ayah.text, number, ayah.numberInSurah),
       translation: translationEdition.ayahs[i]?.text ?? "",
     })),
   };
