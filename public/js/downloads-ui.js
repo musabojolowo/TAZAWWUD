@@ -81,7 +81,7 @@ function getManager() {
     manager = createDownloadManager({
       storage: idbStorage,
       quran: {
-        fetchSurahList: async () => (await lazyQuran()).fetchSurahList(),
+        fetchSurahList: async () => (await lazyQuran()).fetchSurahListForDownload(),
         fetchSurahDetail: async (n, code) => (await lazyQuran()).fetchSurahDetail(n, code),
         fetchPage: async (p, code) => (await lazyMushaf()).fetchPage(p, code),
       },

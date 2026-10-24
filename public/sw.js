@@ -6,9 +6,17 @@
 // Bump CACHE_VERSION whenever cached assets change, to bust old caches.
 // ============================================================================
 
-const CACHE_VERSION = "tazawwud-shell-v69";
+const CACHE_VERSION = "tazawwud-shell-v75";
+// Icon and text fonts are kept in their own cache, so they survive version changes.
+const FONT_CACHE = "tazawwud-fonts-v1";
 
 const APP_SHELL_ASSETS = [
+  "/icons/icon-96.png",
+  "/icons/icon-48.png",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/icon-192-maskable.png",
+  "/icons/icon-512-maskable.png",
   "/",
   "/index.html",
   "/css/style.css",
@@ -38,6 +46,9 @@ const APP_SHELL_ASSETS = [
   "/js/idb-cache.js",
   "/js/geo.js",
   "/js/native-bridge.js",
+  "/js/mushaf-jump.js",
+  "/fonts/material-symbols-outlined-latin-wght-normal.woff2",
+  "/fonts/LICENSE-Apache-2.0.txt",
   "/js/notification-hub.js",
   "/js/notifications-view.js",
   "/js/bookmarks-view.js",
@@ -74,7 +85,7 @@ self.addEventListener("activate", (event) => {
         Promise.all(
           cacheNames
             // Offline downloads (tazawwud-offline-*) survive version bumps.
-            .filter((name) => name !== CACHE_VERSION && !name.startsWith("tazawwud-offline-"))
+            .filter((name) => name !== CACHE_VERSION && name !== FONT_CACHE && !name.startsWith("tazawwud-offline-"))
             .map((name) => caches.delete(name))
         )
       )
@@ -185,6 +196,29 @@ self.addEventListener("notificationclick", (event) => {
   );
 });
 
+function isFontRequest(request) {
+  const host = new URL(request.url).hostname;
+  return request.destination === "font"
+    || host === "fonts.gstatic.com"
+    || (host === "fonts.googleapis.com" && request.destination === "style");
+}
+
+async function fontCacheFirst(event, request) {
+  const cache = await caches.open(FONT_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    // Opaque responses (cross-origin, no CORS) are stored too, so the icon font works offline.
+    if (response.ok || response.type === "opaque") {
+      event.waitUntil(cache.put(request, response.clone()).catch(() => {}));
+    }
+    return response;
+  } catch (error) {
+    return cached || Response.error();
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
@@ -198,6 +232,12 @@ self.addEventListener("fetch", (event) => {
         return cache.match("/index.html");
       })
     );
+    return;
+  }
+
+  // Fonts (the icon font and Arabic text font) are cached once used, so they work offline.
+  if (isFontRequest(request)) {
+    event.respondWith(fontCacheFirst(event, request));
     return;
   }
 
