@@ -953,6 +953,11 @@ button {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
+  /* Reserve room for the longest value (h:mm:ss) and keep changes inside this element,
+     so the once-a-second update does not re-layout or repaint the whole screen. */
+  min-width: 8ch;
+  text-align: right;
+  contain: layout;
 }
 
 .home-next-prayer__clock {
