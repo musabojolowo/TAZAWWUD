@@ -185,7 +185,10 @@ export function getPrayerState(timings) {
 
   const nextIndex = prayerMinutes.findIndex((prayer) => prayer.minutes > minutesNow);
   if (nextIndex === -1) {
-    return { current: null, next: prayerMinutes[0] };
+    // Every prayer today has passed: there is no next prayer today. getNextPrayerTarget()
+    // then uses tomorrow's Fajr. (Returning today's Fajr here made the countdown reload
+    // the whole Home screen repeatedly.)
+    return { current: prayerMinutes[prayerMinutes.length - 1], next: null };
   }
 
   const current = nextIndex > 0 ? prayerMinutes[nextIndex - 1] : null;
