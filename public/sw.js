@@ -6,11 +6,17 @@
 // Bump CACHE_VERSION whenever cached assets change, to bust old caches.
 // ============================================================================
 
-const CACHE_VERSION = "tazawwud-shell-v71";
+const CACHE_VERSION = "tazawwud-shell-v73";
 // Icon and text fonts are kept in their own cache, so they survive version changes.
 const FONT_CACHE = "tazawwud-fonts-v1";
 
 const APP_SHELL_ASSETS = [
+  "/icons/icon-96.png",
+  "/icons/icon-48.png",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/icon-192-maskable.png",
+  "/icons/icon-512-maskable.png",
   "/",
   "/index.html",
   "/css/style.css",
@@ -40,6 +46,7 @@ const APP_SHELL_ASSETS = [
   "/js/idb-cache.js",
   "/js/geo.js",
   "/js/native-bridge.js",
+  "/js/mushaf-jump.js",
   "/js/notification-hub.js",
   "/js/notifications-view.js",
   "/js/bookmarks-view.js",

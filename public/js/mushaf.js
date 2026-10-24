@@ -25,6 +25,7 @@ import { db } from "./firebase-config.js";
 import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 import { fetchJsonWithFallback, renderFallbackNotice } from "./error-boundary.js";
 import { escapeHtml } from "./html-utils.js";
+import { validateJump, pageForAyah } from "./mushaf-jump.js";
 
 const API_BASE = "https://api.alquran.cloud/v1";
 const PAGE_COUNT = 604;
@@ -289,6 +290,10 @@ function renderAyahDetailPanel(ayahNumber, translationText) {
 function renderBottomToolbar() {
   return `
     <div class="reading-bottom-toolbar">
+      <button type="button" id="reading-contents-btn" class="reading-toolbar-btn">
+        <span class="material-symbols-rounded icon" aria-hidden="true">menu_book</span>
+        <span class="reading-toolbar-btn__label">Contents</span>
+      </button>
       <button type="button" id="reading-play-btn" class="reading-toolbar-btn">
         <span class="material-symbols-rounded icon" aria-hidden="true">play_arrow</span>
         <span class="reading-toolbar-btn__label">Play</span>
@@ -522,6 +527,50 @@ function wireAutoScrollAndRepeat(container) {
   });
 }
 
+/** Go to a Surah and Ayah: finds the ayah's page, shows it and scrolls to the ayah. */
+function wireGoto(container) {
+  const form = container.querySelector("#reading-goto-form");
+  if (!form) return;
+  const message = container.querySelector("#goto-message");
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const surah = Number(container.querySelector("#goto-surah").value);
+    const ayah = Number(container.querySelector("#goto-ayah").value);
+    const surahError = validateJump(surah, ayah, null);
+    if (surahError) {
+      message.textContent = surahError;
+      return;
+    }
+    message.textContent = "Finding the ayah…";
+    try {
+      const detail = await fetchSurahDetail(surah, getCurrentTranslationCode());
+      const error = validateJump(surah, ayah, detail.numberOfAyahs);
+      if (error) {
+        message.textContent = error;
+        return;
+      }
+      const page = pageForAyah(detail, ayah);
+      if (!page) {
+        message.textContent = "That ayah could not be found.";
+        return;
+      }
+      await renderPage(container, page);
+      container.querySelector(`.reading-ayah[data-surah="${surah}"][data-ayah="${ayah}"]`)
+        ?.scrollIntoView({ block: "center" });
+    } catch (error) {
+      console.error("[TAZAWWUD] Go to ayah failed:", error);
+      message.textContent = "Could not open that ayah. Check your connection, then try again.";
+    }
+  });
+}
+
+/** Contents: opens the Surah list. */
+function wireContents(container) {
+  container.querySelector("#reading-contents-btn")?.addEventListener("click", () => {
+    window.location.hash = "#quran";
+  });
+}
+
 function wireTopBarNav(container, pageNumber) {
   container.querySelector("#prev-page-btn")?.addEventListener("click", () => {
     if (pageNumber > 1) renderPage(container, pageNumber - 1);
@@ -593,6 +642,12 @@ async function renderPage(container, pageNumber) {
 
     container.innerHTML = `
       ${renderReadingTopBar(page.number, juzLabelForPage(page))}
+      <form id="reading-goto-form" class="reading-goto" autocomplete="off">
+        <label>Surah <input id="goto-surah" type="number" min="1" max="114" inputmode="numeric" required /></label>
+        <label>Ayah <input id="goto-ayah" type="number" min="1" inputmode="numeric" required /></label>
+        <button type="submit" class="reading-goto__btn">Go</button>
+        <p id="goto-message" class="reading-goto__message" role="status"></p>
+      </form>
       <div class="reading-card mushaf-page">
         ${renderPageSegments(page)}
         ${renderMushafFooter(page.number)}
@@ -614,6 +669,8 @@ async function renderPage(container, pageNumber) {
     const cardEl = container.querySelector(".reading-card");
     wireAyahTaps(cardEl, page);
     wireTopBarNav(container, page.number);
+    wireGoto(container);
+    wireContents(container);
     wirePlayButton(container, page.ayahs[0]?.surah.number || 1);
     wireAutoScrollAndRepeat(container);
     wireSwipeGestures(container, {

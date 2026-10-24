@@ -3779,3 +3779,30 @@ button {
 
 /* Shown when a page module fails to load (public/js/app.js renderModuleError) */
 .module-error { display: grid; gap: var(--space-3); justify-items: center; padding: var(--space-5) var(--space-3); text-align: center; color: var(--color-text-muted); }
+
+/* Go to Surah and Ayah (Mushaf reader) */
+.reading-goto {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+  margin: 8px 0 12px;
+}
+.reading-goto label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+}
+.reading-goto input {
+  width: 5.5rem;
+  padding: 6px 8px;
+}
+.reading-goto__btn {
+  padding: 8px 14px;
+}
+.reading-goto__message {
+  width: 100%;
+  margin: 0;
+  font-size: 0.85rem;
+  color: #b3261e;
+}
