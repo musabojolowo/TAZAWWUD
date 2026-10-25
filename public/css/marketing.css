@@ -6,3 +6,38 @@
 @media(max-width:700px){.wrap{width:min(100% - 36px,540px)}.site-header{height:72px}.brand img{width:39px;height:39px}.menu-toggle{display:grid;gap:5px;place-content:center;width:42px;height:42px;border:1px solid var(--line);border-radius:9px;background:transparent;color:var(--emerald);z-index:2}.menu-toggle span{width:18px;height:2px;background:currentColor;transition:transform .2s}.menu-toggle[aria-expanded="true"] span:first-child{transform:translateY(3.5px) rotate(45deg)}.menu-toggle[aria-expanded="true"] span:last-child{transform:translateY(-3.5px) rotate(-45deg)}.primary-nav{display:none;position:absolute;top:71px;left:0;right:0;padding:14px 20px 22px;background:var(--warm);border-bottom:1px solid var(--line);box-shadow:0 16px 22px rgba(8,60,51,.1);align-items:stretch;gap:4px}.primary-nav.is-open{display:flex;flex-direction:column}.primary-nav>a:not(.button){padding:10px 2px}.primary-nav .button{margin-top:8px}.hero{min-height:auto}.hero-grid{display:flex;flex-direction:column;align-items:stretch;padding-block:62px 74px;gap:10px}.hero-copy{max-width:none}.hero h1{font-size:clamp(3rem,12vw,4.6rem);max-width:520px}.hero-lede{font-size:.98rem}.hero-note{margin-top:30px}.hero-art{height:480px;transform:none;margin:0 -10px}.app-preview{width:275px;min-height:430px;transform:rotate(1deg) scale(.95)}.preview-greeting{padding-top:22px}.float-card-prayer{left:-1px;top:54px}.float-card-offline{right:0;bottom:34px}.hero-seal{right:0;top:30px;transform:scale(.8) rotate(10deg)}.orbit{width:370px;height:370px}.orbit-two{width:450px;height:450px}.hero-bottom-inner{font-size:.48rem;letter-spacing:.1em}.section-pad{padding-block:70px}.intro-grid{grid-template-columns:1fr;gap:22px}.intro-text{font-size:1rem}.section-heading{display:block}.section-heading>p{margin-top:15px}.feature-grid{grid-template-columns:1fr 1fr;gap:11px}.feature-card{min-height:300px;padding:19px 16px}.feature-card h3{font-size:1.05rem}.feature-card>p{font-size:.78rem}.feature-icon{width:46px;height:46px;margin-bottom:18px}.feature-icon img{width:44px;height:44px}.feature-number{font-size:.48rem}.feature-mini-time{left:16px;right:16px;gap:5px;flex-wrap:wrap}.feature-mini-time span{font-size:.44rem}.feature-mini-time b{font-size:.67rem}.offline-pill{left:15px;bottom:18px;font-size:.4rem}.preview-grid{grid-template-columns:1fr;gap:18px}.preview-copy{max-width:500px}.preview-copy h2{font-size:3rem}.device-stage{height:460px;transform:scale(.86);transform-origin:top center;margin-bottom:-52px}.device-back{transform:translate(-87px,14px) rotate(-10deg)}.device-front{transform:translate(60px,-2px) rotate(7deg)}.closing-cta{padding-block:58px}.cta-card{padding-block:54px}.cta-arabic{right:10px;font-size:3rem}.footer-main{gap:14px;flex-wrap:wrap}.footer-main>p{display:none}.footer-bottom{padding-block:16px;gap:12px;flex-wrap:wrap}.footer-bottom nav{order:3;width:100%;justify-content:center;padding-top:12px;border-top:1px solid rgba(255,255,255,.1)}.footer-bottom>span,.back-top{flex:1}.back-top{text-align:right}.legal-hero{padding:56px 0 48px}.legal-content{padding-block:42px 65px}}
 @media(max-width:400px){.feature-grid{grid-template-columns:1fr}.feature-card{min-height:265px}.hero-actions{align-items:flex-start;flex-direction:column;gap:17px}.hero-art{height:435px}.float-card-prayer{transform:scale(.86);transform-origin:left top}.float-card-offline{transform:scale(.86);transform-origin:right bottom}.device-stage{transform:scale(.76);margin-inline:-45px;margin-bottom:-95px}.hero-bottom-inner{gap:8px;font-size:.42rem}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+
+/* Review form and "Everything inside" section */
+.feature-note {
+  margin-top: 28px;
+  padding: 18px 22px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+.feature-note p {
+  margin: 0;
+}
+.feedback-frame {
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #ffffff;
+}
+.feedback-frame iframe {
+  display: block;
+  width: 100%;
+  min-height: 880px;
+  border: 0;
+}
+.feedback-fallback {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 0.95rem;
+}
+@media (max-width: 640px) {
+  .feedback-frame iframe {
+    min-height: 1100px;
+  }
+}
