@@ -15,6 +15,7 @@ public class PrayerBridgePlugin extends Plugin {
         PrayerStore.saveSettings(getContext(), data.toString());
         PrayerNotifier.createChannels(getContext());
         PrayerScheduler.refresh(getContext());
+        PrayerCountdownService.refreshCard(getContext()); // shows the new prayer count at once
         call.resolve();
     }
 }

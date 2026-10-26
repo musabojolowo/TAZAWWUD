@@ -13,6 +13,8 @@
 import { getCurrentUser, onUserChanged, signOutUser, getUid } from "./auth.js";
 import { clearAllLocalData } from "./storage.js";
 import { navigateTo } from "./app.js";
+import { db } from "./firebase-config.js";
+import { ref, get } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 import { escapeHtml } from "./html-utils.js";
 import {
   getReminders,
@@ -56,6 +58,32 @@ function closeSidebar() {
 
 function onKeydown(event) {
   if (event.key === "Escape") closeSidebar();
+}
+
+/**
+ * Shows an Admin button in the sidebar only for a signed-in account listed under admins/.
+ * Hiding it is not the security: the database rules decide what an admin can change.
+ */
+async function renderAdminEntry() {
+  const slot = document.getElementById("sidebar-admin-slot");
+  if (!slot) return;
+  slot.replaceChildren();
+  const user = getCurrentUser();
+  const uid = getUid();
+  if (!user || user.isAnonymous || !uid) return;
+  try {
+    const snapshot = await get(ref(db, `admins/${uid}`));
+    if (!snapshot.exists() || snapshot.val() !== true) return;
+  } catch (error) {
+    return; // the check failed: show nothing rather than guess
+  }
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "settings-row-btn";
+  button.dataset.gotoView = "admin";
+  button.textContent = "Admin";
+  button.addEventListener("click", () => navigateTo("admin"));
+  slot.append(button);
 }
 
 function renderAccountStatus() {
@@ -212,7 +240,10 @@ export function initSidebar() {
   document.getElementById("delete-data-btn")?.addEventListener("click", handleDeleteData);
 
   wireGotoViewButtons(sidebar);
-  onUserChanged(renderAccountStatus);
+  onUserChanged(() => {
+    renderAccountStatus();
+    renderAdminEntry();
+  });
   renderAccountStatus();
   renderOfflineStatus();
 

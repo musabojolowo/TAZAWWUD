@@ -35,7 +35,8 @@ final class PrayerTimesApi {
                    .append("&longitude=").append(location.optDouble("longitude"));
             }
             url.append("&method=").append(settings.optInt("method", 3))
-               .append("&school=").append(settings.optInt("school", 0));
+               .append("&school=").append(settings.optInt("school", 0))
+               .append("&latitudeAdjustmentMethod=").append(latitudeAdjustment(settings));
 
             HttpURLConnection connection = (HttpURLConnection) new URL(url.toString()).openConnection();
             connection.setConnectTimeout(10000);
@@ -50,7 +51,7 @@ final class PrayerTimesApi {
             JSONObject timings = new JSONObject(body).getJSONObject("data").getJSONObject("timings");
 
             JSONObject result = new JSONObject();
-            for (String name : new String[] {"Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"}) {
+            for (String name : new String[] {"Fajr", "Sunrise", "Dhuhr", "Asr", "Sunset", "Maghrib", "Isha"}) {
                 // AlAdhan adds a zone, for example "05:10 (CAT)"; keep only HH:MM.
                 result.put(name, timings.getString(name).substring(0, 5));
             }
@@ -58,6 +59,12 @@ final class PrayerTimesApi {
         } catch (Exception error) {
             return null;
         }
+    }
+
+    /** 1 middle of the night, 2 one seventh, 3 angle based. Anything else is 3, the default. */
+    static int latitudeAdjustment(JSONObject settings) {
+        int value = settings.optInt("latitudeAdjustment", 3);
+        return value == 1 || value == 2 || value == 3 ? value : 3;
     }
 
     private static String enc(String value) throws Exception {

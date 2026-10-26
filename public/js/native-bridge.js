@@ -144,6 +144,8 @@ export async function getNativePosition({ timeout = 15000, enableHighAccuracy = 
  * Sends the saved prayer settings, location and notification preferences to the native
  * side, which sets the Adhan alarms and the countdown card. A no-op in a browser.
  */
+import { trackerSummary } from "./tracker.js";
+
 export function syncNativeSchedule() {
   const bridge = plugin("PrayerBridge");
   if (!bridge) return;
@@ -156,12 +158,21 @@ export function syncNativeSchedule() {
       location,
       method: Number.isInteger(settings.method) ? settings.method : 3,
       school: Number.isInteger(settings.school) ? settings.school : 0,
+      latitudeAdjustment: [1, 2, 3].includes(Number(settings.latitudeAdjustment)) ? Number(settings.latitudeAdjustment) : 3,
+      imsakMinutes: Number.isInteger(settings.imsakMinutes) && settings.imsakMinutes >= 0 && settings.imsakMinutes <= 30 ? settings.imsakMinutes : 0,
+      imsakCountdown: settings.imsakCountdown === true,
+      prayerModes: (() => {
+        const defaults = { Fajr: "adhan", Dhuhr: "adhan", Asr: "adhan", Maghrib: "adhan", Isha: "adhan", Sunrise: "bell", Sunset: "bell" };
+        const saved = read("tazawwud:prayer-modes") || {};
+        return { ...defaults, ...saved };
+      })(),
       master: prefs.master !== false,
       offsetMinutes: Number(prefs.offsetMinutes) || 0,
       prayers: prefs.prayers || {},
       quran: prefs.quran || {},
       adhkar: prefs.adhkar || {},
       friday: prefs.friday || {},
+      tracker: trackerSummary(globalThis.localStorage),
     }).catch((error) => console.warn("[TAZAWWUD] Native schedule not saved:", error?.message));
   } catch (error) {
     console.warn("[TAZAWWUD] Native schedule could not be read:", error?.message);

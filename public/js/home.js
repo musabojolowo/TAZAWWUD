@@ -23,7 +23,9 @@ import {
   requestLocationHeadless,
 } from "./salah.js";
 import { formatGregorianDate, getTodayHijriLabel } from "./calendar.js";
+import { TRACKED_PRAYERS, getDayStatus, setPrayed, markAllPrayed, countPrayed, dayKey, currentStreak } from "./tracker.js";
 import { navigateTo } from "./app.js";
+import { syncNativeSchedule } from "./native-bridge.js";
 
 const EXPLORE_ROOT_ID = "home-explore-root";
 
@@ -154,28 +156,231 @@ function renderExplore() {
 
 /** Today's five prayers as a compact list — one row each, next prayer
  *  highlighted with an accent bar. */
+// The day the tick list shows: today, or a past day picked in the day strip.
+const STRIP_DAYS_BACK = 6;
+const STRIP_DAYS_FORWARD = 0;
+let selectedTrackerDay = null;
+let lastPrayerArgs = null;
+
+function trackedDay() {
+  return selectedTrackerDay || new Date();
+}
+
+function trackerStatus() {
+  return getDayStatus(globalThis.localStorage, trackedDay());
+}
+
+function streakLabel() {
+  const streak = currentStreak(globalThis.localStorage, new Date());
+  return streak === 0 ? "No streak yet" : `${streak}-day streak`;
+}
+
+/** The last seven days, ending today. Tap one to review or tick its prayers. */
+function renderDayStrip() {
+  const today = new Date();
+  const selectedKey = dayKey(trackedDay());
+  const todayKey = dayKey(today);
+  const buttons = [];
+  // A year back and a year ahead. Future days can be viewed, not ticked.
+  for (let i = STRIP_DAYS_BACK; i >= -STRIP_DAYS_FORWARD; i -= 1) {
+    const day = new Date(today);
+    day.setDate(day.getDate() - i);
+    const key = dayKey(day);
+    const future = key > todayKey;
+    const count = future ? 0 : countPrayed(getDayStatus(globalThis.localStorage, day));
+    const label = day.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+    buttons.push(`
+      <button type="button" class="home-day${key === selectedKey ? " is-selected" : ""}${key === todayKey ? " is-today" : ""}${future ? " is-future" : ""}" data-track-day="${key}" aria-pressed="${key === selectedKey}" aria-label="${escapeHtml(label)}, ${count} of 5 prayed"${future ? " disabled" : ""}>
+        <span class="home-day__week">${escapeHtml(day.toLocaleDateString("en-GB", { weekday: "narrow" }))}</span>
+        <strong class="home-day__num">${day.getDate()}</strong>
+        <small class="home-day__count" data-track-day-count="${key}">${count}/5</small>
+      </button>`);
+  }
+  return `<div class="home-day-strip" role="group" aria-label="Choose a day to review">${buttons.join("")}</div>`;
+}
+
+// Each prayer plays the Adhan or shows a bell. Sunrise and Sunset show a bell or are off.
+const PRAYER_MODES_KEY = "tazawwud:prayer-modes";
+const DEFAULT_MODES = { Fajr: "adhan", Dhuhr: "adhan", Asr: "adhan", Maghrib: "adhan", Isha: "adhan", Sunrise: "bell", Sunset: "bell" };
+const MODE_CHOICES = {
+  Fajr: ["adhan", "bell"], Dhuhr: ["adhan", "bell"], Asr: ["adhan", "bell"], Maghrib: ["adhan", "bell"], Isha: ["adhan", "bell"],
+  Sunrise: ["bell", "off"], Sunset: ["bell", "off"],
+};
+
+function readModes() {
+  let saved = null;
+  try { saved = JSON.parse(globalThis.localStorage?.getItem(PRAYER_MODES_KEY) || "null"); } catch { saved = null; }
+  const modes = { ...DEFAULT_MODES };
+  for (const name of Object.keys(DEFAULT_MODES)) {
+    if (saved && MODE_CHOICES[name].includes(saved[name])) modes[name] = saved[name];
+  }
+  return modes;
+}
+
+function writeMode(name, value) {
+  const modes = readModes();
+  modes[name] = value;
+  globalThis.localStorage?.setItem(PRAYER_MODES_KEY, JSON.stringify(modes));
+}
+
+/** The next choice in a pair, for example adhan to bell. */
+function nextMode(name, current) {
+  const choices = MODE_CHOICES[name];
+  return choices[(choices.indexOf(current) + 1) % choices.length];
+}
+
+function modeIcon(mode) {
+  return { adhan: "🔊", bell: "🔔", off: "🔕" }[mode] || "🔔";
+}
+
+function modeLabel(name, mode) {
+  return mode === "adhan" ? `${name}: Adhan` : mode === "bell" ? `${name}: bell` : `${name}: off`;
+}
+
+/** The label for a prayer on the day being viewed: Dhuhr is Jumu'ah on a Friday. */
+function prayerDisplay(prayer) {
+  if (prayer.name === "Dhuhr" && trackedDay().getDay() === 5) {
+    return { name: "Jumu'ah", arabic: "الجمعة" };
+  }
+  return { name: prayer.name, arabic: prayer.arabic };
+}
+
+/** Sunrise or Sunset: a bell, or off. Sunset is shown before Maghrib. */
+function renderSunRow(name, timings) {
+  const mode = readModes()[name];
+  const time = name === "Sunrise" ? timings.Sunrise : timings.Sunset;
+  return `
+      <li class="home-salah-list__row home-salah-list__row--sun">
+        <span class="home-track-spacer" aria-hidden="true"></span>
+        <span class="home-salah-list__name-en">${name}</span>
+        <span class="home-salah-list__time">${escapeHtml(time || "—")}</span>
+        <button type="button" class="home-bell${mode !== "off" ? " is-on" : ""}" data-sun-mode="${name}" aria-label="${escapeHtml(modeLabel(name, mode))}">${modeIcon(mode)}</button>
+      </li>
+    `;
+}
+
 function renderSalahList(timings, state) {
+  lastPrayerArgs = { timings, state };
+  const status = trackerStatus();
   const rows = PRAYERS.map((prayer) => {
     const isCurrent = state.current?.key === prayer.key;
     const isNext = state.next?.key === prayer.key;
-    return `
+    const tracked = TRACKED_PRAYERS.includes(prayer.name);
+    const prayed = tracked && status[prayer.name] === true;
+    const shown = prayerDisplay(prayer);
+    const mode = readModes()[prayer.name];
+    const alert = tracked
+      ? `<button type="button" class="home-bell is-on" data-alert-prayer="${escapeHtml(prayer.name)}" aria-label="${escapeHtml(modeLabel(shown.name, mode))}">${modeIcon(mode)}</button>`
+      : "";
+    const tick = tracked
+      ? `<button type="button" class="home-track${prayed ? " is-prayed" : ""}" data-track-prayer="${escapeHtml(prayer.name)}" aria-pressed="${prayed}" aria-label="Mark ${escapeHtml(shown.name)} as prayed">${prayed ? "✓" : ""}</button>`
+      : `<span class="home-track-spacer" aria-hidden="true"></span>`;
+    const row = `
       <li class="home-salah-list__row${isNext ? " is-next" : ""}${isCurrent ? " is-current" : ""}">
-        <span class="home-salah-list__name-ar" lang="ar" dir="rtl">${escapeHtml(prayer.arabic)}</span>
-        <span class="home-salah-list__name-en">${escapeHtml(prayer.name)}</span>
+        ${tick}
+        <span class="home-salah-list__name-ar" lang="ar" dir="rtl">${escapeHtml(shown.arabic)}</span>
+        <span class="home-salah-list__name-en">${escapeHtml(shown.name)}</span>
         <span class="home-salah-list__time">${escapeHtml(timings[prayer.key] || "—")}</span>
+        ${alert}
       </li>
     `;
+    // Sunrise sits after Fajr, and Sunset before Maghrib. Neither has a tick.
+    if (prayer.key === "Fajr") return row + renderSunRow("Sunrise", timings);
+    if (prayer.key === "Maghrib") return renderSunRow("Sunset", timings) + row;
+    return row;
   }).join("");
 
   return `
-    <section class="home-salah-list" aria-label="Today's five prayers">
+    <section class="home-salah-list" aria-label="Five prayers">
       <div class="home-salah-list__header">
-        <h3 class="home-salah-list__heading">Today's Prayers</h3>
+        <h3 class="home-salah-list__heading">${dayKey(trackedDay()) === dayKey(new Date()) ? "Today's Prayers" : "Prayers for the chosen day"}</h3>
         <button type="button" class="home-salah-list__view-all" data-goto-view="salah">View all</button>
       </div>
+      ${renderDayStrip()}
       <ul class="home-salah-list__rows">${rows}</ul>
+      <div class="home-track-all">
+        <button type="button" class="home-track-all__button" data-track-all ${countPrayed(status) === 5 ? "disabled" : ""}>Mark all as prayed</button>
+        <p class="home-track-all__count" data-track-count aria-live="polite">${countPrayed(status)}/5 tracked</p>
+        <p class="home-track-streak" data-track-streak>${escapeHtml(streakLabel())}</p>
+      </div>
     </section>
   `;
+}
+
+/** Tick circles and "Mark all as prayed" on Home. Only the five prayers are tracked. */
+function wireTracker(root) {
+  const storage = globalThis.localStorage;
+  // Keep the chosen day in view in the strip.
+  const strip = root.querySelector(".home-day-strip");
+  const selected = strip?.querySelector(".is-selected");
+  if (strip && selected) {
+    strip.scrollLeft = selected.offsetLeft - strip.clientWidth / 2 + selected.clientWidth / 2;
+  }
+  // Adhan or bell for each of the five prayers.
+  root.querySelectorAll("[data-alert-prayer]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const name = button.dataset.alertPrayer;
+      const mode = nextMode(name, readModes()[name]);
+      writeMode(name, mode);
+      const shown = prayerDisplay(PRAYERS.find((p) => p.name === name));
+      button.textContent = modeIcon(mode);
+      button.setAttribute("aria-label", modeLabel(shown.name, mode));
+      syncNativeSchedule();
+    });
+  });
+  // Sunrise and Sunset: bell or off.
+  root.querySelectorAll("[data-sun-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const name = button.dataset.sunMode;
+      const mode = nextMode(name, readModes()[name]);
+      writeMode(name, mode);
+      button.textContent = modeIcon(mode);
+      button.classList.toggle("is-on", mode !== "off");
+      button.setAttribute("aria-label", modeLabel(name, mode));
+      syncNativeSchedule();
+    });
+  });
+  root.querySelectorAll("[data-track-day]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const [year, month, day] = button.dataset.trackDay.split("-").map(Number);
+      selectedTrackerDay = new Date(year, month - 1, day);
+      const section = root.querySelector(".home-salah-list");
+      if (section && lastPrayerArgs) {
+        section.outerHTML = renderSalahList(lastPrayerArgs.timings, lastPrayerArgs.state);
+        wireTracker(root);
+      }
+    });
+  });
+  root.querySelectorAll("[data-track-prayer]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const name = button.dataset.trackPrayer;
+      const day = trackedDay();
+      const isOn = getDayStatus(storage, day)[name] === true;
+      refreshTracker(root, setPrayed(storage, day, name, !isOn));
+    });
+  });
+  root.querySelector("[data-track-all]")?.addEventListener("click", () => {
+    refreshTracker(root, markAllPrayed(storage, trackedDay()));
+  });
+}
+
+/** Updates the tick circles and the count in place, without redrawing the page. */
+function refreshTracker(root, status) {
+  root.querySelectorAll("[data-track-prayer]").forEach((button) => {
+    const on = status[button.dataset.trackPrayer] === true;
+    button.classList.toggle("is-prayed", on);
+    button.setAttribute("aria-pressed", String(on));
+    button.textContent = on ? "✓" : "";
+  });
+  const count = countPrayed(status);
+  const label = root.querySelector("[data-track-count]");
+  if (label) label.textContent = `${count}/5 tracked`;
+  root.querySelector("[data-track-all]")?.toggleAttribute("disabled", count === 5);
+  const dayCount = root.querySelector(`[data-track-day-count="${dayKey(trackedDay())}"]`);
+  if (dayCount) dayCount.textContent = `${count}/5`;
+  const streak = root.querySelector("[data-track-streak]");
+  if (streak) streak.textContent = streakLabel();
+  syncNativeSchedule(); // the phone's notification card shows today's count and streak
 }
 
 /** Buttons carry data-goto-view and go through navigateTo(), the one router
@@ -284,7 +489,7 @@ function renderDashboard(root, snapshot) {
           </div>
           <div class="home-next-prayer__when">
             <span class="home-next-prayer__countdown" data-home-countdown>${next ? formatCountdown(next.target) : "—"}</span>
-            <span class="home-next-prayer__clock">${next ? escapeHtml(timings[next.prayer.key] || "") : ""}</span>
+            <span class="home-next-prayer__clock">${next ? escapeHtml(next.time || timings[next.prayer.key] || "") : ""}</span>
           </div>
         </div>
       </section>
@@ -292,6 +497,8 @@ function renderDashboard(root, snapshot) {
     renderExplore() + renderSalahList(timings, state)
   );
   fillHijriDate(root);
+  // The prayer list is drawn into the Explore container, so the tick handlers must be wired there.
+  wireTracker(document.getElementById(EXPLORE_ROOT_ID) || root);
 
   if (next) startCountdown(root, next);
 }

@@ -633,6 +633,10 @@ async function initFirebaseFeatures() {
 function initApp() {
   renderFooterYear();
   initRouter();
+  // First launch only: intro screens, then the location and notification prompts.
+  import("/js/onboarding.js")
+    .then(({ maybeStartOnboarding }) => maybeStartOnboarding())
+    .catch((error) => console.warn("[TAZAWWUD] Intro unavailable:", error));
   initThemeToggle();
   initNetworkStatus();
   // Firebase-backed features load separately; a failure here never blocks navigation.

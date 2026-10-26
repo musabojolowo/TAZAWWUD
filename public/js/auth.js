@@ -10,12 +10,15 @@
 // ============================================================================
 
 import { auth } from "./firebase-config.js";
+import { inNativeApp } from "./native-bridge.js";
 import {
   onAuthStateChanged,
   signInAnonymously,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithCredential,
   linkWithPopup,
+  linkWithCredential,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
@@ -57,6 +60,9 @@ export async function ensureSignedIn() {
  * switching to a brand-new account. Returns { user, isNewLink }.
  */
 export async function signInWithGoogle() {
+  // Inside the Android app, Google's popup is blocked, so the phone's own Google sign-in is used.
+  if (inNativeApp()) return signInWithGoogleOnAndroid();
+
   const provider = new GoogleAuthProvider();
 
   if (currentUser?.isAnonymous) {
@@ -77,6 +83,42 @@ export async function signInWithGoogle() {
 
   const credential = await signInWithPopup(auth, provider);
   currentUser = credential.user;
+  return { user: currentUser, isNewLink: false };
+}
+
+/**
+ * Android: the phone's Google sign-in (the @capacitor-firebase/authentication plugin, with
+ * skipNativeAuth set in capacitor.config.json) returns a Google id token. The Firebase web
+ * SDK signs in with that token, so the account, its uid and its admin access are the same
+ * as on the website. An anonymous visitor's data moves to the Google account, as on the web.
+ */
+async function signInWithGoogleOnAndroid() {
+  const plugin = globalThis.Capacitor?.Plugins?.FirebaseAuthentication;
+  if (!plugin) {
+    throw new Error("Google sign-in is not available in this version of the app.");
+  }
+  const result = await plugin.signInWithGoogle();
+  const idToken = result?.credential?.idToken;
+  if (!idToken) {
+    throw new Error("Google sign-in did not return an account.");
+  }
+  const credential = GoogleAuthProvider.credential(idToken);
+
+  if (currentUser?.isAnonymous) {
+    try {
+      const linked = await linkWithCredential(currentUser, credential);
+      currentUser = linked.user;
+      return { user: currentUser, isNewLink: true };
+    } catch (error) {
+      if (error.code !== "auth/credential-already-in-use") throw error;
+      console.warn(
+        "[TAZAWWUD] Google account already linked to a different user; signing in to it instead."
+      );
+    }
+  }
+
+  const signedIn = await signInWithCredential(auth, credential);
+  currentUser = signedIn.user;
   return { user: currentUser, isNewLink: false };
 }
 

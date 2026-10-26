@@ -15,7 +15,10 @@ import androidx.core.app.NotificationManagerCompat;
 
 /** Channels and notifications for the Adhan, the reminders and the countdown card. */
 final class PrayerNotifier {
-    static final String ADHAN_CHANNEL = "adhan";
+    // A new channel name, so the Adhan sound is set when it is created. Android keeps the sound
+    // of an existing channel, so an older channel named "adhan" could still play a normal chime.
+    static final String ADHAN_CHANNEL = "adhan_v2";
+    private static final String OLD_ADHAN_CHANNEL = "adhan";
     static final String REMINDER_CHANNEL = "reminders";
     static final String COUNTDOWN_CHANNEL = "countdown";
     static final int COUNTDOWN_ID = 9001;
@@ -27,6 +30,9 @@ final class PrayerNotifier {
     static void createChannels(Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager manager = context.getSystemService(NotificationManager.class);
+
+        // Remove the older Adhan channel, which may have been created with the wrong sound.
+        manager.deleteNotificationChannel(OLD_ADHAN_CHANNEL);
 
         // The Adhan channel plays the recording. Its sound is fixed once created.
         NotificationChannel adhan = new NotificationChannel(ADHAN_CHANNEL,
@@ -56,15 +62,16 @@ final class PrayerNotifier {
 
     static void showAdhan(Context context, String prayer) {
         createChannels(context);
+        String shownName = "Test".equals(prayer) ? prayer : PrayerScheduler.label(prayer, System.currentTimeMillis());
         Intent open = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
         PendingIntent tap = PendingIntent.getActivity(context, 0, open,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, ADHAN_CHANNEL)
             .setSmallIcon(context.getApplicationInfo().icon)
-            .setContentTitle("Test".equals(prayer) ? "Background Adhan test" : prayer + " — time to pray")
+            .setContentTitle("Test".equals(prayer) ? "Background Adhan test" : shownName + " — time to pray")
             .setContentText("Test".equals(prayer)
                 ? "If you can read this with the app closed, background alerts work."
-                : "The Adhan for " + prayer + " is starting.")
+                : "The Adhan for " + shownName + " is starting.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
@@ -91,6 +98,15 @@ final class PrayerNotifier {
             builder.setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
         }
         notify(context, REMINDER_BASE_ID + Math.abs((tag == null ? "" : tag).hashCode() % 50), builder.build());
+    }
+
+    /** The bell for Sunrise or Sunset. The Adhkar audio is started separately. */
+    static void showSunEvent(Context context, String kind) {
+        boolean sunrise = "sunrise".equals(kind);
+        showReminder(context,
+            sunrise ? "Sunrise" : "Sunset",
+            sunrise ? "Sunrise has begun. Morning remembrance is playing." : "Sunset has begun. Evening remembrance is playing.",
+            "tazawwud-" + kind);
     }
 
     static void notify(Context context, int id, android.app.Notification notification) {
