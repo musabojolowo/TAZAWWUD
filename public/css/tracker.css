@@ -56,14 +56,15 @@
 
 /* Day strip: review or tick a past day */
 .home-day-strip {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
   margin: 8px 0 12px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
+  width: 100%;
+  box-sizing: border-box;
 }
 .home-day {
-  flex: 0 0 56px;
+  min-width: 0;
 }
 .home-day.is-future {
   opacity: 0.45;

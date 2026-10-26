@@ -157,8 +157,8 @@ function renderExplore() {
 /** Today's five prayers as a compact list — one row each, next prayer
  *  highlighted with an accent bar. */
 // The day the tick list shows: today, or a past day picked in the day strip.
-const STRIP_DAYS_BACK = 365;
-const STRIP_DAYS_FORWARD = 365;
+const STRIP_DAYS_BACK = 6;
+const STRIP_DAYS_FORWARD = 0;
 let selectedTrackerDay = null;
 let lastPrayerArgs = null;
 
