@@ -15,7 +15,10 @@ import androidx.core.app.NotificationManagerCompat;
 
 /** Channels and notifications for the Adhan, the reminders and the countdown card. */
 final class PrayerNotifier {
-    static final String ADHAN_CHANNEL = "adhan";
+    // A new channel name, so the Adhan sound is set when it is created. Android keeps the sound
+    // of an existing channel, so an older channel named "adhan" could still play a normal chime.
+    static final String ADHAN_CHANNEL = "adhan_v2";
+    private static final String OLD_ADHAN_CHANNEL = "adhan";
     static final String REMINDER_CHANNEL = "reminders";
     static final String COUNTDOWN_CHANNEL = "countdown";
     static final int COUNTDOWN_ID = 9001;
@@ -27,6 +30,9 @@ final class PrayerNotifier {
     static void createChannels(Context context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         NotificationManager manager = context.getSystemService(NotificationManager.class);
+
+        // Remove the older Adhan channel, which may have been created with the wrong sound.
+        manager.deleteNotificationChannel(OLD_ADHAN_CHANNEL);
 
         // The Adhan channel plays the recording. Its sound is fixed once created.
         NotificationChannel adhan = new NotificationChannel(ADHAN_CHANNEL,

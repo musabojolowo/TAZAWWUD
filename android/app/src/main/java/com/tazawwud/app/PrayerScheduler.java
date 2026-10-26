@@ -150,6 +150,21 @@ final class PrayerScheduler {
                 if (at > now && (best == null || at < (Long) best[1])) best = new Object[] {name, at};
             }
         }
+
+        // Imsak countdown, as on the web: until today's Imsak has passed, the next item is Imsak.
+        // Imsak is today's Fajr minus the chosen minutes (not offset), matching the web app.
+        if (settings.optBoolean("imsakCountdown", false)) {
+            Calendar today = Calendar.getInstance();
+            JSONObject times = parse(PrayerStore.loadDay(app, dateKey(today)));
+            int before = settings.optInt("imsakMinutes", 0);
+            if (times != null && before >= 0 && before <= 30) {
+                long fajr = clockOn(today, times.optString("Fajr", ""));
+                if (fajr >= 0) {
+                    long imsak = fajr - before * MINUTE;
+                    if (imsak > now && (best == null || imsak < (Long) best[1])) best = new Object[] {"Imsak", imsak};
+                }
+            }
+        }
         return best;
     }
 

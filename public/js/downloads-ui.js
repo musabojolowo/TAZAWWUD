@@ -100,6 +100,26 @@ function getManager() {
   return manager;
 }
 
+let managerLoaded = null;
+
+/** Loads the saved download state once, however many callers start a download. */
+function ensureManagerLoaded() {
+  if (!managerLoaded) managerLoaded = getManager().load();
+  return managerLoaded;
+}
+
+/** Starts a Qur'an download for one translation. Used by the first-launch prompt. */
+export async function startQuranDownload(code) {
+  await ensureManagerLoaded();
+  return getManager().startQuran(code);
+}
+
+/** Starts a Hadith collection download. Used by the first-launch prompt. */
+export async function startHadithDownload(slug) {
+  await ensureManagerLoaded();
+  return getManager().startHadith(slug);
+}
+
 function requestPersistentStorageOnce() {
   if (persistRequested) return;
   persistRequested = true;
@@ -139,7 +159,7 @@ function scheduleBadges() {
 export function initDownloads() {
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    await getManager().load();
+    await ensureManagerLoaded();
     latest = getManager().summary();
     const observer = new MutationObserver(scheduleBadges);
     observer.observe(document.body, { childList: true, subtree: true });

@@ -24,7 +24,15 @@ const ASR_SCHOOLS = [
   { value: 0, label: "Standard / Shafi'i" },
   { value: 1, label: "Hanafi" },
 ];
-const DEFAULT_SETTINGS = { method: 3, school: 0 };
+// High-latitude adjustment, as AlAdhan's latitudeAdjustmentMethod: 1 middle of the night,
+// 2 one seventh, 3 angle based (AlAdhan's own default).
+const LATITUDE_METHODS = [
+  { value: 3, label: "Angle based" },
+  { value: 1, label: "Middle of the night" },
+  { value: 2, label: "One seventh" },
+];
+const IMSAK_MAX_MINUTES = 30;
+const DEFAULT_SETTINGS = { method: 3, school: 0, latitudeAdjustment: 3, imsakMinutes: 0, imsakCountdown: false };
 export const PRAYERS = [
   { key: "Fajr", name: "Fajr", arabic: "الفجر" },
   { key: "Dhuhr", name: "Dhuhr", arabic: "الظهر" },
@@ -36,19 +44,32 @@ export const PRAYERS = [
 let initializedRoot = null;
 let currentLocation = null;
 
+/** Checks every saved setting. Anything missing or wrong falls back to its default. */
+export function sanitizeSettings(saved) {
+  const method = Number(saved?.method);
+  const school = Number(saved?.school);
+  const latitude = Number(saved?.latitudeAdjustment);
+  const imsak = Number(saved?.imsakMinutes);
+  return {
+    method: CALCULATION_METHODS.some((option) => option.value === method)
+      ? method
+      : DEFAULT_SETTINGS.method,
+    school: ASR_SCHOOLS.some((option) => option.value === school)
+      ? school
+      : DEFAULT_SETTINGS.school,
+    latitudeAdjustment: LATITUDE_METHODS.some((option) => option.value === latitude)
+      ? latitude
+      : DEFAULT_SETTINGS.latitudeAdjustment,
+    imsakMinutes: Number.isInteger(imsak) && imsak >= 0 && imsak <= IMSAK_MAX_MINUTES
+      ? imsak
+      : DEFAULT_SETTINGS.imsakMinutes,
+    imsakCountdown: saved?.imsakCountdown === true,
+  };
+}
+
 function loadSettings() {
   try {
-    const saved = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || "null");
-    const method = Number(saved?.method);
-    const school = Number(saved?.school);
-    return {
-      method: CALCULATION_METHODS.some((option) => option.value === method)
-        ? method
-        : DEFAULT_SETTINGS.method,
-      school: ASR_SCHOOLS.some((option) => option.value === school)
-        ? school
-        : DEFAULT_SETTINGS.school,
-    };
+    return sanitizeSettings(JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || "null"));
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -142,6 +163,13 @@ function renderShell(root) {
         <select id="salah-school" class="salah-select" data-salah-school>
           ${renderOptions(ASR_SCHOOLS, settings.school)}
         </select>
+        <label for="salah-latitude">High latitude adjustment</label>
+        <select id="salah-latitude" class="salah-select" data-salah-latitude>
+          ${renderOptions(LATITUDE_METHODS, settings.latitudeAdjustment)}
+        </select>
+        <label for="salah-imsak">Imsak (minutes before Fajr)</label>
+        <input id="salah-imsak" class="salah-select" type="number" min="0" max="${IMSAK_MAX_MINUTES}" step="1" inputmode="numeric" value="${settings.imsakMinutes}" data-salah-imsak />
+        <label class="salah-toggle"><input type="checkbox" data-salah-imsak-countdown ${settings.imsakCountdown ? "checked" : ""} /> Imsak countdown on Home</label>
         <p class="salah-preferences__hint">Preferences are saved and applied to your prayer times.</p>
       </div>
     </section>
@@ -166,6 +194,20 @@ function setMessage(root, message, isError = false) {
 function setBusy(root, message) {
   root.setAttribute("aria-busy", "true");
   setMessage(root, message);
+}
+
+/** "HH:MM" for a number of minutes after midnight; wraps within one day. */
+export function formatMinutes(minutes) {
+  const day = 24 * 60;
+  const wrapped = ((minutes % day) + day) % day;
+  return `${String(Math.floor(wrapped / 60)).padStart(2, "0")}:${String(wrapped % 60).padStart(2, "0")}`;
+}
+
+/** Imsak = Fajr minus the chosen number of minutes. Null if Fajr is unknown. */
+export function imsakTimeFor(timings, minutesBefore) {
+  const fajr = parseTime(timings?.Fajr);
+  if (fajr === null) return null;
+  return formatMinutes(fajr - (Number(minutesBefore) || 0));
 }
 
 function parseTime(time) {
@@ -199,7 +241,18 @@ function renderPrayerTimes(root, timings, locationLabel) {
   const state = getPrayerState(timings);
   root.setAttribute("aria-busy", "false");
   root.querySelector("[data-salah-location]").innerHTML = `<strong>${escapeHtml(locationLabel)}</strong>`;
-  root.querySelector("[data-salah-times]").innerHTML = PRAYERS.map((prayer) => {
+  const imsak = imsakTimeFor(timings, loadSettings().imsakMinutes);
+  const imsakRow = imsak === null ? "" : `
+      <div class="salah-prayer" data-prayer-key="Imsak">
+        <div>
+          <span class="salah-prayer__name">Imsak</span>
+          <span class="salah-prayer__arabic" lang="ar" dir="rtl">الإمساك</span>
+        </div>
+        <div>
+          <span class="salah-prayer__time">${escapeHtml(imsak)}</span>
+        </div>
+      </div>`;
+  root.querySelector("[data-salah-times]").innerHTML = imsakRow + PRAYERS.map((prayer) => {
     const isCurrent = state.current?.key === prayer.key;
     const isNext = state.next?.key === prayer.key;
     const status = isCurrent ? "Now" : isNext ? "Next" : "";
@@ -258,12 +311,17 @@ async function loadPrayerTimes(root, url, locationLabel) {
   }
 }
 
-function getApiParams() {
-  const settings = loadSettings();
+/** The query values sent to AlAdhan, built from the saved settings. */
+export function buildApiParams(settings) {
   return {
     method: String(settings.method),
     school: String(settings.school),
+    latitudeAdjustmentMethod: String(settings.latitudeAdjustment),
   };
+}
+
+function getApiParams() {
+  return buildApiParams(loadSettings());
 }
 
 function loadByCoordinates(root, latitude, longitude) {
@@ -354,10 +412,20 @@ export function getNextPrayerTarget(timings) {
   const state = getPrayerState(timings);
   const now = new Date();
 
+  // Imsak countdown: until today's Imsak has passed, the countdown is to Imsak.
+  const settings = loadSettings();
+  const imsak = settings.imsakCountdown ? imsakTimeFor(timings, settings.imsakMinutes) : null;
+  const imsakMinutes = imsak === null ? null : parseTime(imsak);
+  if (imsakMinutes !== null && now.getHours() * 60 + now.getMinutes() < imsakMinutes) {
+    const target = new Date(now);
+    target.setHours(Math.floor(imsakMinutes / 60), imsakMinutes % 60, 0, 0);
+    return { prayer: { key: "Imsak", name: "Imsak", arabic: "الإمساك" }, target, time: imsak };
+  }
+
   if (state.next) {
     const target = new Date(now);
     target.setHours(Math.floor(state.next.minutes / 60), state.next.minutes % 60, 0, 0);
-    return { prayer: state.next, target };
+    return { prayer: state.next, target, time: timings[state.next.key] || "" };
   }
 
   const fajrMinutes = parseTime(timings.Fajr);
@@ -366,7 +434,7 @@ export function getNextPrayerTarget(timings) {
   const target = new Date(now);
   target.setDate(target.getDate() + 1);
   target.setHours(Math.floor(fajrMinutes / 60), fajrMinutes % 60, 0, 0);
-  return { prayer: { ...fajr, minutes: fajrMinutes }, target };
+  return { prayer: { ...fajr, minutes: fajrMinutes }, target, time: timings.Fajr };
 }
 
 /**
@@ -448,6 +516,30 @@ export function initSalah(root) {
     const city = String(formData.get("city")).trim();
     const country = String(formData.get("country")).trim();
     if (city && country) loadByCity(root, city, country);
+  });
+
+  root.querySelector("[data-salah-latitude]").addEventListener("change", (event) => {
+    const settings = loadSettings();
+    settings.latitudeAdjustment = Number(event.currentTarget.value);
+    saveSettings(settings);
+    reloadCurrentLocation(root);
+  });
+  root.querySelector("[data-salah-imsak]").addEventListener("change", (event) => {
+    const text = event.currentTarget.value.trim();
+    const value = text === "" ? NaN : Number(text); // an empty box is not 0
+    const settings = loadSettings();
+    if (Number.isInteger(value) && value >= 0 && value <= IMSAK_MAX_MINUTES) {
+      settings.imsakMinutes = value;
+      saveSettings(settings);
+      reloadCurrentLocation(root);
+    } else {
+      event.currentTarget.value = String(settings.imsakMinutes);
+    }
+  });
+  root.querySelector("[data-salah-imsak-countdown]").addEventListener("change", (event) => {
+    const settings = loadSettings();
+    settings.imsakCountdown = event.currentTarget.checked;
+    saveSettings(settings);
   });
 
   ["[data-salah-method]", "[data-salah-school]"].forEach((selector) => {

@@ -23,7 +23,9 @@ import {
   requestLocationHeadless,
 } from "./salah.js";
 import { formatGregorianDate, getTodayHijriLabel } from "./calendar.js";
+import { TRACKED_PRAYERS, getDayStatus, setPrayed, markAllPrayed, countPrayed } from "./tracker.js";
 import { navigateTo } from "./app.js";
+import { syncNativeSchedule } from "./native-bridge.js";
 
 const EXPLORE_ROOT_ID = "home-explore-root";
 
@@ -154,12 +156,23 @@ function renderExplore() {
 
 /** Today's five prayers as a compact list — one row each, next prayer
  *  highlighted with an accent bar. */
+function trackerStatus() {
+  return getDayStatus(globalThis.localStorage, new Date());
+}
+
 function renderSalahList(timings, state) {
+  const status = trackerStatus();
   const rows = PRAYERS.map((prayer) => {
     const isCurrent = state.current?.key === prayer.key;
     const isNext = state.next?.key === prayer.key;
+    const tracked = TRACKED_PRAYERS.includes(prayer.name);
+    const prayed = tracked && status[prayer.name] === true;
+    const tick = tracked
+      ? `<button type="button" class="home-track${prayed ? " is-prayed" : ""}" data-track-prayer="${escapeHtml(prayer.name)}" aria-pressed="${prayed}" aria-label="Mark ${escapeHtml(prayer.name)} as prayed">${prayed ? "✓" : ""}</button>`
+      : `<span class="home-track-spacer" aria-hidden="true"></span>`;
     return `
       <li class="home-salah-list__row${isNext ? " is-next" : ""}${isCurrent ? " is-current" : ""}">
+        ${tick}
         <span class="home-salah-list__name-ar" lang="ar" dir="rtl">${escapeHtml(prayer.arabic)}</span>
         <span class="home-salah-list__name-en">${escapeHtml(prayer.name)}</span>
         <span class="home-salah-list__time">${escapeHtml(timings[prayer.key] || "—")}</span>
@@ -174,8 +187,42 @@ function renderSalahList(timings, state) {
         <button type="button" class="home-salah-list__view-all" data-goto-view="salah">View all</button>
       </div>
       <ul class="home-salah-list__rows">${rows}</ul>
+      <div class="home-track-all">
+        <button type="button" class="home-track-all__button" data-track-all ${countPrayed(status) === 5 ? "disabled" : ""}>Mark all as prayed</button>
+        <p class="home-track-all__count" data-track-count aria-live="polite">${countPrayed(status)}/5 tracked</p>
+      </div>
     </section>
   `;
+}
+
+/** Tick circles and "Mark all as prayed" on Home. Only the five prayers are tracked. */
+function wireTracker(root) {
+  const storage = globalThis.localStorage;
+  root.querySelectorAll("[data-track-prayer]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const name = button.dataset.trackPrayer;
+      const isOn = getDayStatus(storage, new Date())[name] === true;
+      refreshTracker(root, setPrayed(storage, new Date(), name, !isOn));
+    });
+  });
+  root.querySelector("[data-track-all]")?.addEventListener("click", () => {
+    refreshTracker(root, markAllPrayed(storage, new Date()));
+  });
+}
+
+/** Updates the tick circles and the count in place, without redrawing the page. */
+function refreshTracker(root, status) {
+  root.querySelectorAll("[data-track-prayer]").forEach((button) => {
+    const on = status[button.dataset.trackPrayer] === true;
+    button.classList.toggle("is-prayed", on);
+    button.setAttribute("aria-pressed", String(on));
+    button.textContent = on ? "✓" : "";
+  });
+  const count = countPrayed(status);
+  const label = root.querySelector("[data-track-count]");
+  if (label) label.textContent = `${count}/5 tracked`;
+  root.querySelector("[data-track-all]")?.toggleAttribute("disabled", count === 5);
+  syncNativeSchedule(); // the phone's notification card shows the same count
 }
 
 /** Buttons carry data-goto-view and go through navigateTo(), the one router
@@ -284,7 +331,7 @@ function renderDashboard(root, snapshot) {
           </div>
           <div class="home-next-prayer__when">
             <span class="home-next-prayer__countdown" data-home-countdown>${next ? formatCountdown(next.target) : "—"}</span>
-            <span class="home-next-prayer__clock">${next ? escapeHtml(timings[next.prayer.key] || "") : ""}</span>
+            <span class="home-next-prayer__clock">${next ? escapeHtml(next.time || timings[next.prayer.key] || "") : ""}</span>
           </div>
         </div>
       </section>
@@ -292,6 +339,7 @@ function renderDashboard(root, snapshot) {
     renderExplore() + renderSalahList(timings, state)
   );
   fillHijriDate(root);
+  wireTracker(root);
 
   if (next) startCountdown(root, next);
 }

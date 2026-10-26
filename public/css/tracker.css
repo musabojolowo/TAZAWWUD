@@ -1,0 +1,55 @@
+/* Prayer tracker on Home: tick circles and "Mark all as prayed" */
+.home-track {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  margin-inline-end: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(167, 216, 201, 0.7);
+  background: transparent;
+  color: #ffffff;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.home-track.is-prayed {
+  background: #00a35a;
+  border-color: #00a35a;
+}
+.home-track-spacer {
+  flex: 0 0 auto;
+  width: 26px;
+  margin-inline-end: 12px;
+}
+.home-track-all {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.home-track-all__button {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #00a35a;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+.home-track-all__button[disabled] {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: default;
+}
+.home-track-all__count {
+  margin: 0;
+  color: #b9d9d0;
+  font-size: 14px;
+}
