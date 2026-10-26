@@ -53,3 +53,48 @@
   color: #b9d9d0;
   font-size: 14px;
 }
+
+/* Day strip: review or tick a past day */
+.home-day-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+.home-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 0;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+}
+.home-day.is-today {
+  border-color: #a7d8c9;
+}
+.home-day.is-selected {
+  background: #00a35a;
+  border-color: #00a35a;
+}
+.home-day__week {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.home-day__num {
+  font-size: 16px;
+}
+.home-day__count {
+  font-size: 11px;
+  opacity: 0.8;
+}
+.home-track-streak {
+  width: 100%;
+  margin: 0;
+  color: #f6d58b;
+  font-weight: 600;
+  font-size: 14px;
+}

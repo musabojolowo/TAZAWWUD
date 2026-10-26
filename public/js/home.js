@@ -23,7 +23,7 @@ import {
   requestLocationHeadless,
 } from "./salah.js";
 import { formatGregorianDate, getTodayHijriLabel } from "./calendar.js";
-import { TRACKED_PRAYERS, getDayStatus, setPrayed, markAllPrayed, countPrayed } from "./tracker.js";
+import { TRACKED_PRAYERS, getDayStatus, setPrayed, markAllPrayed, countPrayed, dayKey, currentStreak } from "./tracker.js";
 import { navigateTo } from "./app.js";
 import { syncNativeSchedule } from "./native-bridge.js";
 
@@ -156,11 +156,47 @@ function renderExplore() {
 
 /** Today's five prayers as a compact list — one row each, next prayer
  *  highlighted with an accent bar. */
+// The day the tick list shows: today, or a past day picked in the day strip.
+let selectedTrackerDay = null;
+let lastPrayerArgs = null;
+
+function trackedDay() {
+  return selectedTrackerDay || new Date();
+}
+
 function trackerStatus() {
-  return getDayStatus(globalThis.localStorage, new Date());
+  return getDayStatus(globalThis.localStorage, trackedDay());
+}
+
+function streakLabel() {
+  const streak = currentStreak(globalThis.localStorage, new Date());
+  return streak === 0 ? "No streak yet" : `${streak}-day streak`;
+}
+
+/** The last seven days, ending today. Tap one to review or tick its prayers. */
+function renderDayStrip() {
+  const today = new Date();
+  const selectedKey = dayKey(trackedDay());
+  const todayKey = dayKey(today);
+  const buttons = [];
+  for (let i = 6; i >= 0; i -= 1) {
+    const day = new Date(today);
+    day.setDate(day.getDate() - i);
+    const key = dayKey(day);
+    const count = countPrayed(getDayStatus(globalThis.localStorage, day));
+    const label = day.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+    buttons.push(`
+      <button type="button" class="home-day${key === selectedKey ? " is-selected" : ""}${key === todayKey ? " is-today" : ""}" data-track-day="${key}" aria-pressed="${key === selectedKey}" aria-label="${escapeHtml(label)}, ${count} of 5 prayed">
+        <span class="home-day__week">${escapeHtml(day.toLocaleDateString("en-GB", { weekday: "narrow" }))}</span>
+        <strong class="home-day__num">${day.getDate()}</strong>
+        <small class="home-day__count" data-track-day-count="${key}">${count}/5</small>
+      </button>`);
+  }
+  return `<div class="home-day-strip" role="group" aria-label="Choose a day to review">${buttons.join("")}</div>`;
 }
 
 function renderSalahList(timings, state) {
+  lastPrayerArgs = { timings, state };
   const status = trackerStatus();
   const rows = PRAYERS.map((prayer) => {
     const isCurrent = state.current?.key === prayer.key;
@@ -181,15 +217,17 @@ function renderSalahList(timings, state) {
   }).join("");
 
   return `
-    <section class="home-salah-list" aria-label="Today's five prayers">
+    <section class="home-salah-list" aria-label="Five prayers">
       <div class="home-salah-list__header">
-        <h3 class="home-salah-list__heading">Today's Prayers</h3>
+        <h3 class="home-salah-list__heading">${dayKey(trackedDay()) === dayKey(new Date()) ? "Today's Prayers" : "Prayers for the chosen day"}</h3>
         <button type="button" class="home-salah-list__view-all" data-goto-view="salah">View all</button>
       </div>
+      ${renderDayStrip()}
       <ul class="home-salah-list__rows">${rows}</ul>
       <div class="home-track-all">
         <button type="button" class="home-track-all__button" data-track-all ${countPrayed(status) === 5 ? "disabled" : ""}>Mark all as prayed</button>
         <p class="home-track-all__count" data-track-count aria-live="polite">${countPrayed(status)}/5 tracked</p>
+        <p class="home-track-streak" data-track-streak>${escapeHtml(streakLabel())}</p>
       </div>
     </section>
   `;
@@ -198,15 +236,27 @@ function renderSalahList(timings, state) {
 /** Tick circles and "Mark all as prayed" on Home. Only the five prayers are tracked. */
 function wireTracker(root) {
   const storage = globalThis.localStorage;
+  root.querySelectorAll("[data-track-day]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const [year, month, day] = button.dataset.trackDay.split("-").map(Number);
+      selectedTrackerDay = new Date(year, month - 1, day);
+      const section = root.querySelector(".home-salah-list");
+      if (section && lastPrayerArgs) {
+        section.outerHTML = renderSalahList(lastPrayerArgs.timings, lastPrayerArgs.state);
+        wireTracker(root);
+      }
+    });
+  });
   root.querySelectorAll("[data-track-prayer]").forEach((button) => {
     button.addEventListener("click", () => {
       const name = button.dataset.trackPrayer;
-      const isOn = getDayStatus(storage, new Date())[name] === true;
-      refreshTracker(root, setPrayed(storage, new Date(), name, !isOn));
+      const day = trackedDay();
+      const isOn = getDayStatus(storage, day)[name] === true;
+      refreshTracker(root, setPrayed(storage, day, name, !isOn));
     });
   });
   root.querySelector("[data-track-all]")?.addEventListener("click", () => {
-    refreshTracker(root, markAllPrayed(storage, new Date()));
+    refreshTracker(root, markAllPrayed(storage, trackedDay()));
   });
 }
 
@@ -222,7 +272,11 @@ function refreshTracker(root, status) {
   const label = root.querySelector("[data-track-count]");
   if (label) label.textContent = `${count}/5 tracked`;
   root.querySelector("[data-track-all]")?.toggleAttribute("disabled", count === 5);
-  syncNativeSchedule(); // the phone's notification card shows the same count
+  const dayCount = root.querySelector(`[data-track-day-count="${dayKey(trackedDay())}"]`);
+  if (dayCount) dayCount.textContent = `${count}/5`;
+  const streak = root.querySelector("[data-track-streak]");
+  if (streak) streak.textContent = streakLabel();
+  syncNativeSchedule(); // the phone's notification card shows today's count and streak
 }
 
 /** Buttons carry data-goto-view and go through navigateTo(), the one router
@@ -339,7 +393,8 @@ function renderDashboard(root, snapshot) {
     renderExplore() + renderSalahList(timings, state)
   );
   fillHijriDate(root);
-  wireTracker(root);
+  // The prayer list is drawn into the Explore container, so the tick handlers must be wired there.
+  wireTracker(document.getElementById(EXPLORE_ROOT_ID) || root);
 
   if (next) startCountdown(root, next);
 }

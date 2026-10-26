@@ -6,7 +6,7 @@
 // Bump CACHE_VERSION whenever cached assets change, to bust old caches.
 // ============================================================================
 
-const CACHE_VERSION = "tazawwud-shell-v76";
+const CACHE_VERSION = "tazawwud-shell-v77";
 // Icon and text fonts are kept in their own cache, so they survive version changes.
 const FONT_CACHE = "tazawwud-fonts-v1";
 

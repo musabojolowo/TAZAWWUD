@@ -6,7 +6,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 
 import org.json.JSONObject;
 
@@ -130,6 +132,34 @@ final class PrayerScheduler {
     }
 
     /** The next prayer from the cached days, as {name, at}, or null. */
+    /**
+     * The upcoming prayers in time order, excluding Imsak, as {name, millis} pairs.
+     * Used for the card's "After" line, so it follows the same settings as nextPrayer().
+     */
+    static List<Object[]> upcoming(Context app) {
+        List<Object[]> out = new ArrayList<>();
+        JSONObject settings = parse(PrayerStore.loadSettings(app));
+        if (settings == null || !settings.optBoolean("master", true)) return out;
+        JSONObject prayers = settings.optJSONObject("prayers");
+        int offset = settings.optInt("offsetMinutes", 0);
+        long now = System.currentTimeMillis();
+        for (int d = 0; d < 2; d++) {
+            Calendar day = Calendar.getInstance();
+            day.add(Calendar.DAY_OF_YEAR, d);
+            JSONObject times = parse(PrayerStore.loadDay(app, dateKey(day)));
+            if (times == null) continue;
+            for (String name : PRAYERS) {
+                if (prayers != null && !prayers.optBoolean(name, true)) continue;
+                long base = clockOn(day, times.optString(name, ""));
+                if (base < 0) continue;
+                long at = base + offset * MINUTE;
+                if (at > now) out.add(new Object[] {name, at});
+            }
+        }
+        out.sort((a, b) -> Long.compare((Long) a[1], (Long) b[1]));
+        return out;
+    }
+
     static Object[] nextPrayer(Context app) {
         JSONObject settings = parse(PrayerStore.loadSettings(app));
         if (settings == null || !settings.optBoolean("master", true)) return null;

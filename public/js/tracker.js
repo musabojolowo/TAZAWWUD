@@ -82,8 +82,26 @@ export function lastSevenDays(storage, today = new Date()) {
   return out;
 }
 
-/** Today's ticks as the phone needs them: the date, the count and each prayer. */
+/**
+ * The streak: how many days in a row have all five prayers ticked, counting back from today.
+ * If today is not finished yet, the streak counts from yesterday, so it only breaks after a missed day.
+ */
+export function currentStreak(storage, today = new Date()) {
+  const day = new Date(today);
+  if (countPrayed(getDayStatus(storage, day)) !== TRACKED_PRAYERS.length) {
+    day.setDate(day.getDate() - 1);
+  }
+  let streak = 0;
+  while (countPrayed(getDayStatus(storage, day)) === TRACKED_PRAYERS.length) {
+    streak += 1;
+    day.setDate(day.getDate() - 1);
+    if (streak >= KEEP_DAYS) break;
+  }
+  return streak;
+}
+
+/** Today's ticks as the phone needs them: the date, the count, each prayer and the streak. */
 export function trackerSummary(storage, date = new Date()) {
   const prayed = getDayStatus(storage, date);
-  return { date: dayKey(date), count: countPrayed(prayed), prayed };
+  return { date: dayKey(date), count: countPrayed(prayed), prayed, streak: currentStreak(storage, date) };
 }
