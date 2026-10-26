@@ -161,6 +161,11 @@ export function syncNativeSchedule() {
       latitudeAdjustment: [1, 2, 3].includes(Number(settings.latitudeAdjustment)) ? Number(settings.latitudeAdjustment) : 3,
       imsakMinutes: Number.isInteger(settings.imsakMinutes) && settings.imsakMinutes >= 0 && settings.imsakMinutes <= 30 ? settings.imsakMinutes : 0,
       imsakCountdown: settings.imsakCountdown === true,
+      prayerModes: (() => {
+        const defaults = { Fajr: "adhan", Dhuhr: "adhan", Asr: "adhan", Maghrib: "adhan", Isha: "adhan", Sunrise: "bell", Sunset: "bell" };
+        const saved = read("tazawwud:prayer-modes") || {};
+        return { ...defaults, ...saved };
+      })(),
       master: prefs.master !== false,
       offsetMinutes: Number(prefs.offsetMinutes) || 0,
       prayers: prefs.prayers || {},

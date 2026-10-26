@@ -51,7 +51,7 @@ final class PrayerTimesApi {
             JSONObject timings = new JSONObject(body).getJSONObject("data").getJSONObject("timings");
 
             JSONObject result = new JSONObject();
-            for (String name : new String[] {"Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"}) {
+            for (String name : new String[] {"Fajr", "Sunrise", "Dhuhr", "Asr", "Sunset", "Maghrib", "Isha"}) {
                 // AlAdhan adds a zone, for example "05:10 (CAT)"; keep only HH:MM.
                 result.put(name, timings.getString(name).substring(0, 5));
             }

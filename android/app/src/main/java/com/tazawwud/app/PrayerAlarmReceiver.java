@@ -4,14 +4,25 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 
-/** Fires at each alarm time: shows the Adhan or the reminder, then sets the next alarms. */
+/** Fires at each alarm time: plays the Adhan or shows the bell, then sets the next alarms. */
 public class PrayerAlarmReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
+        String kind = intent.getStringExtra("kind");
         String prayer = intent.getStringExtra("prayer");
         String title = intent.getStringExtra("title");
-        if (prayer != null) {
-            PrayerNotifier.showAdhan(context, prayer);
+        if (kind != null) {
+            // Sunrise or Sunset: a bell notification, and the Adhkar audio for up to one minute.
+            PrayerNotifier.showSunEvent(context, kind);
+            AdhkarService.start(context, kind);
+        } else if (prayer != null) {
+            if ("bell".equals(intent.getStringExtra("mode"))) {
+                String name = PrayerScheduler.label(prayer, System.currentTimeMillis());
+                PrayerNotifier.showReminder(context, name + " — time to pray",
+                    "It is time for " + name + ".", "prayer-bell-" + prayer);
+            } else {
+                PrayerNotifier.showAdhan(context, prayer);
+            }
         } else if (title != null) {
             PrayerNotifier.showReminder(context, title, intent.getStringExtra("body"), intent.getStringExtra("tag"));
         }

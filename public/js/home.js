@@ -157,6 +157,8 @@ function renderExplore() {
 /** Today's five prayers as a compact list — one row each, next prayer
  *  highlighted with an accent bar. */
 // The day the tick list shows: today, or a past day picked in the day strip.
+const STRIP_DAYS_BACK = 365;
+const STRIP_DAYS_FORWARD = 365;
 let selectedTrackerDay = null;
 let lastPrayerArgs = null;
 
@@ -179,20 +181,82 @@ function renderDayStrip() {
   const selectedKey = dayKey(trackedDay());
   const todayKey = dayKey(today);
   const buttons = [];
-  for (let i = 6; i >= 0; i -= 1) {
+  // A year back and a year ahead. Future days can be viewed, not ticked.
+  for (let i = STRIP_DAYS_BACK; i >= -STRIP_DAYS_FORWARD; i -= 1) {
     const day = new Date(today);
     day.setDate(day.getDate() - i);
     const key = dayKey(day);
-    const count = countPrayed(getDayStatus(globalThis.localStorage, day));
+    const future = key > todayKey;
+    const count = future ? 0 : countPrayed(getDayStatus(globalThis.localStorage, day));
     const label = day.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
     buttons.push(`
-      <button type="button" class="home-day${key === selectedKey ? " is-selected" : ""}${key === todayKey ? " is-today" : ""}" data-track-day="${key}" aria-pressed="${key === selectedKey}" aria-label="${escapeHtml(label)}, ${count} of 5 prayed">
+      <button type="button" class="home-day${key === selectedKey ? " is-selected" : ""}${key === todayKey ? " is-today" : ""}${future ? " is-future" : ""}" data-track-day="${key}" aria-pressed="${key === selectedKey}" aria-label="${escapeHtml(label)}, ${count} of 5 prayed"${future ? " disabled" : ""}>
         <span class="home-day__week">${escapeHtml(day.toLocaleDateString("en-GB", { weekday: "narrow" }))}</span>
         <strong class="home-day__num">${day.getDate()}</strong>
         <small class="home-day__count" data-track-day-count="${key}">${count}/5</small>
       </button>`);
   }
   return `<div class="home-day-strip" role="group" aria-label="Choose a day to review">${buttons.join("")}</div>`;
+}
+
+// Each prayer plays the Adhan or shows a bell. Sunrise and Sunset show a bell or are off.
+const PRAYER_MODES_KEY = "tazawwud:prayer-modes";
+const DEFAULT_MODES = { Fajr: "adhan", Dhuhr: "adhan", Asr: "adhan", Maghrib: "adhan", Isha: "adhan", Sunrise: "bell", Sunset: "bell" };
+const MODE_CHOICES = {
+  Fajr: ["adhan", "bell"], Dhuhr: ["adhan", "bell"], Asr: ["adhan", "bell"], Maghrib: ["adhan", "bell"], Isha: ["adhan", "bell"],
+  Sunrise: ["bell", "off"], Sunset: ["bell", "off"],
+};
+
+function readModes() {
+  let saved = null;
+  try { saved = JSON.parse(globalThis.localStorage?.getItem(PRAYER_MODES_KEY) || "null"); } catch { saved = null; }
+  const modes = { ...DEFAULT_MODES };
+  for (const name of Object.keys(DEFAULT_MODES)) {
+    if (saved && MODE_CHOICES[name].includes(saved[name])) modes[name] = saved[name];
+  }
+  return modes;
+}
+
+function writeMode(name, value) {
+  const modes = readModes();
+  modes[name] = value;
+  globalThis.localStorage?.setItem(PRAYER_MODES_KEY, JSON.stringify(modes));
+}
+
+/** The next choice in a pair, for example adhan to bell. */
+function nextMode(name, current) {
+  const choices = MODE_CHOICES[name];
+  return choices[(choices.indexOf(current) + 1) % choices.length];
+}
+
+function modeIcon(mode) {
+  return { adhan: "🔊", bell: "🔔", off: "🔕" }[mode] || "🔔";
+}
+
+function modeLabel(name, mode) {
+  return mode === "adhan" ? `${name}: Adhan` : mode === "bell" ? `${name}: bell` : `${name}: off`;
+}
+
+/** The label for a prayer on the day being viewed: Dhuhr is Jumu'ah on a Friday. */
+function prayerDisplay(prayer) {
+  if (prayer.name === "Dhuhr" && trackedDay().getDay() === 5) {
+    return { name: "Jumu'ah", arabic: "الجمعة" };
+  }
+  return { name: prayer.name, arabic: prayer.arabic };
+}
+
+/** Sunrise or Sunset: a bell, or off. Sunset is shown before Maghrib. */
+function renderSunRow(name, timings) {
+  const mode = readModes()[name];
+  const time = name === "Sunrise" ? timings.Sunrise : timings.Sunset;
+  return `
+      <li class="home-salah-list__row home-salah-list__row--sun">
+        <span class="home-track-spacer" aria-hidden="true"></span>
+        <span class="home-salah-list__name-en">${name}</span>
+        <span class="home-salah-list__time">${escapeHtml(time || "—")}</span>
+        <button type="button" class="home-bell${mode !== "off" ? " is-on" : ""}" data-sun-mode="${name}" aria-label="${escapeHtml(modeLabel(name, mode))}">${modeIcon(mode)}</button>
+      </li>
+    `;
 }
 
 function renderSalahList(timings, state) {
@@ -203,17 +267,27 @@ function renderSalahList(timings, state) {
     const isNext = state.next?.key === prayer.key;
     const tracked = TRACKED_PRAYERS.includes(prayer.name);
     const prayed = tracked && status[prayer.name] === true;
+    const shown = prayerDisplay(prayer);
+    const mode = readModes()[prayer.name];
+    const alert = tracked
+      ? `<button type="button" class="home-bell is-on" data-alert-prayer="${escapeHtml(prayer.name)}" aria-label="${escapeHtml(modeLabel(shown.name, mode))}">${modeIcon(mode)}</button>`
+      : "";
     const tick = tracked
-      ? `<button type="button" class="home-track${prayed ? " is-prayed" : ""}" data-track-prayer="${escapeHtml(prayer.name)}" aria-pressed="${prayed}" aria-label="Mark ${escapeHtml(prayer.name)} as prayed">${prayed ? "✓" : ""}</button>`
+      ? `<button type="button" class="home-track${prayed ? " is-prayed" : ""}" data-track-prayer="${escapeHtml(prayer.name)}" aria-pressed="${prayed}" aria-label="Mark ${escapeHtml(shown.name)} as prayed">${prayed ? "✓" : ""}</button>`
       : `<span class="home-track-spacer" aria-hidden="true"></span>`;
-    return `
+    const row = `
       <li class="home-salah-list__row${isNext ? " is-next" : ""}${isCurrent ? " is-current" : ""}">
         ${tick}
-        <span class="home-salah-list__name-ar" lang="ar" dir="rtl">${escapeHtml(prayer.arabic)}</span>
-        <span class="home-salah-list__name-en">${escapeHtml(prayer.name)}</span>
+        <span class="home-salah-list__name-ar" lang="ar" dir="rtl">${escapeHtml(shown.arabic)}</span>
+        <span class="home-salah-list__name-en">${escapeHtml(shown.name)}</span>
         <span class="home-salah-list__time">${escapeHtml(timings[prayer.key] || "—")}</span>
+        ${alert}
       </li>
     `;
+    // Sunrise sits after Fajr, and Sunset before Maghrib. Neither has a tick.
+    if (prayer.key === "Fajr") return row + renderSunRow("Sunrise", timings);
+    if (prayer.key === "Maghrib") return renderSunRow("Sunset", timings) + row;
+    return row;
   }).join("");
 
   return `
@@ -236,6 +310,36 @@ function renderSalahList(timings, state) {
 /** Tick circles and "Mark all as prayed" on Home. Only the five prayers are tracked. */
 function wireTracker(root) {
   const storage = globalThis.localStorage;
+  // Keep the chosen day in view in the strip.
+  const strip = root.querySelector(".home-day-strip");
+  const selected = strip?.querySelector(".is-selected");
+  if (strip && selected) {
+    strip.scrollLeft = selected.offsetLeft - strip.clientWidth / 2 + selected.clientWidth / 2;
+  }
+  // Adhan or bell for each of the five prayers.
+  root.querySelectorAll("[data-alert-prayer]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const name = button.dataset.alertPrayer;
+      const mode = nextMode(name, readModes()[name]);
+      writeMode(name, mode);
+      const shown = prayerDisplay(PRAYERS.find((p) => p.name === name));
+      button.textContent = modeIcon(mode);
+      button.setAttribute("aria-label", modeLabel(shown.name, mode));
+      syncNativeSchedule();
+    });
+  });
+  // Sunrise and Sunset: bell or off.
+  root.querySelectorAll("[data-sun-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const name = button.dataset.sunMode;
+      const mode = nextMode(name, readModes()[name]);
+      writeMode(name, mode);
+      button.textContent = modeIcon(mode);
+      button.classList.toggle("is-on", mode !== "off");
+      button.setAttribute("aria-label", modeLabel(name, mode));
+      syncNativeSchedule();
+    });
+  });
   root.querySelectorAll("[data-track-day]").forEach((button) => {
     button.addEventListener("click", () => {
       const [year, month, day] = button.dataset.trackDay.split("-").map(Number);

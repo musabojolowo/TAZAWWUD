@@ -8,7 +8,7 @@
 
 export const TRACKED_PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
 const STORE_KEY = "tazawwud:tracker:v1";
-const KEEP_DAYS = 60;
+const KEEP_DAYS = 370;
 
 /** Local date as YYYY-MM-DD, so a prayer belongs to the day it is prayed in. */
 export function dayKey(date = new Date()) {

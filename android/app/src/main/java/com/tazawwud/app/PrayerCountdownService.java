@@ -164,7 +164,8 @@ public class PrayerCountdownService extends Service {
         StringBuilder bigText = new StringBuilder(cityLabel(context));
         Object[] after = afterPrayer(context, name, at);
         if (after != null) {
-            bigText.append("\nAfter ").append(after[0]).append(" at ").append(clock(((Long) after[1]).longValue()));
+            String afterName = PrayerScheduler.label((String) after[0], ((Long) after[1]).longValue());
+            bigText.append("\nAfter ").append(afterName).append(" at ").append(clock(((Long) after[1]).longValue()));
         }
 
         Intent open = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
@@ -172,7 +173,7 @@ public class PrayerCountdownService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new NotificationCompat.Builder(context, PrayerNotifier.COUNTDOWN_CHANNEL)
             .setSmallIcon(context.getApplicationInfo().icon)
-            .setContentTitle(name + " · " + clock(at))
+            .setContentTitle(PrayerScheduler.label(name, at) + " · " + clock(at))
             .setContentText(left + " left · " + prayedText(context))
             .setStyle(new NotificationCompat.BigTextStyle().bigText(bigText.toString()))
             .setOngoing(true)

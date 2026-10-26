@@ -19,7 +19,9 @@ final class PrayerScheduler {
     /** Prayer alarms use request codes 0..34. */
     private static final int REMINDER_BASE = 40;
     /** Reminders use 4 codes per day: Qur'an, morning Adhkar, evening Adhkar, Friday. */
-    private static final int MAX_CODES = REMINDER_BASE + DAYS * 4;
+    private static final int SUN_BASE = 100;
+    /** Sunrise and Sunset use 2 codes per day, from SUN_BASE. */
+    private static final int MAX_CODES = SUN_BASE + DAYS * 2;
     private static final long MINUTE = 60000L;
     private static final long HOUR = 60 * MINUTE;
 
@@ -38,11 +40,18 @@ final class PrayerScheduler {
                 day.add(Calendar.DAY_OF_YEAR, d);
                 String key = dateKey(day);
                 JSONObject times = parse(PrayerStore.loadDay(app, key));
-                if (times == null) {
-                    times = PrayerTimesApi.fetchDay(settings, day);
-                    if (times != null) PrayerStore.saveDay(app, key, times.toString());
+                // Days saved before Sunrise and Sunset were kept are fetched again.
+                if (times == null || !times.has("Sunrise")) {
+                    JSONObject fresh = PrayerTimesApi.fetchDay(settings, day);
+                    if (fresh != null) {
+                        times = fresh;
+                        PrayerStore.saveDay(app, key, times.toString());
+                    }
                 }
-                if (times != null) scheduleDay(app, settings, day, times, d);
+                if (times != null) {
+                    scheduleDay(app, settings, day, times, d);
+                    scheduleSunTimes(app, settings, day, times, d);
+                }
                 scheduleReminders(app, settings, day, times, d);
             }
             PrayerCountdownService.start(app);
@@ -57,8 +66,29 @@ final class PrayerScheduler {
             if (prayers != null && !prayers.optBoolean(name, true)) continue;
             long base = clockOn(day, times.optString(name, ""));
             if (base < 0) continue;
-            scheduleOne(app, dayIndex * PRAYERS.length + i, base + offset * MINUTE, name, null, null, null);
+            String mode = modeOf(settings, name);
+            if ("off".equals(mode)) continue;
+            scheduleOne(app, dayIndex * PRAYERS.length + i, base + offset * MINUTE, name, null, null, null, mode);
         }
+    }
+
+    /** Sunrise (morning Adhkar and bell) and Sunset (evening Adhkar and bell), unless turned off. */
+    private static void scheduleSunTimes(Context app, JSONObject settings, Calendar day, JSONObject times, int dayIndex) {
+        String[] kinds = {"sunrise", "sunset"};
+        String[] names = {"Sunrise", "Sunset"};
+        for (int i = 0; i < kinds.length; i++) {
+            if ("off".equals(modeOf(settings, names[i]))) continue;
+            long base = clockOn(day, times.optString(names[i], ""));
+            if (base < 0) continue;
+            scheduleOne(app, SUN_BASE + dayIndex * 2 + i, base, null, null, null, null, kinds[i]);
+        }
+    }
+
+    /** The mode for a prayer: "adhan" or "bell" for the five, and "bell" or "off" for Sunrise and Sunset. */
+    static String modeOf(JSONObject settings, String name) {
+        JSONObject modes = settings.optJSONObject("prayerModes");
+        if (modes != null && modes.has(name)) return modes.optString(name, "bell");
+        return "Sunrise".equals(name) || "Sunset".equals(name) ? "bell" : "adhan";
     }
 
     /** Qur'an, Adhkar and Friday reminders, with the same times and wording as the web app. */
@@ -69,7 +99,7 @@ final class PrayerScheduler {
         if (quran != null && quran.optBoolean("enabled", false)) {
             long at = clockOn(day, quran.optString("time", ""));
             if (at >= 0) scheduleOne(app, base, at, null,
-                "Qur'an reading - TAZAWWUD", "Time for your daily Qur'an reading.", "tazawwud-quran");
+                "Qur'an reading - TAZAWWUD", "Time for your daily Qur'an reading.", "tazawwud-quran", null);
         }
 
         JSONObject adhkar = settings.optJSONObject("adhkar");
@@ -78,12 +108,12 @@ final class PrayerScheduler {
             if (adhkar.optBoolean("morningEnabled", false)) {
                 long fajr = clockOn(day, times.optString("Fajr", ""));
                 if (fajr >= 0) scheduleOne(app, base + 1, fajr + delay, null,
-                    "Morning Adhkar - TAZAWWUD", "Time for your morning remembrance.", "tazawwud-adhkar-morning");
+                    "Morning Adhkar - TAZAWWUD", "Time for your morning remembrance.", "tazawwud-adhkar-morning", null);
             }
             if (adhkar.optBoolean("eveningEnabled", false)) {
                 long asr = clockOn(day, times.optString("Asr", ""));
                 if (asr >= 0) scheduleOne(app, base + 2, asr + delay, null,
-                    "Evening Adhkar - TAZAWWUD", "Time for your evening remembrance.", "tazawwud-adhkar-evening");
+                    "Evening Adhkar - TAZAWWUD", "Time for your evening remembrance.", "tazawwud-adhkar-evening", null);
             }
         }
 
@@ -92,16 +122,20 @@ final class PrayerScheduler {
         if (friday != null && friday.optBoolean("enabled", false) && day.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY) {
             long jumuah = clockOn(day, friday.optString("jumuahTime", ""));
             if (jumuah >= HOUR) scheduleOne(app, base + 3, jumuah - HOUR, null,
-                "Jumu'ah reminder - TAZAWWUD", "Jumu'ah is in one hour. Prepare for the Friday prayer.", "tazawwud-friday");
+                "Jumu'ah reminder - TAZAWWUD", "Jumu'ah is in one hour. Prepare for the Friday prayer.", "tazawwud-friday", null);
         }
     }
 
     /** Sets one exact alarm. A prayer name gives the Adhan; a title gives a reminder. */
     private static void scheduleOne(Context app, int code, long at, String prayer,
-                                    String title, String body, String tag) {
+                                    String title, String body, String tag, String extra) {
         if (at <= System.currentTimeMillis()) return;
         Intent intent = new Intent(app, PrayerAlarmReceiver.class);
-        if (prayer != null) intent.putExtra("prayer", prayer);
+        if (prayer != null) {
+            intent.putExtra("prayer", prayer);
+            intent.putExtra("mode", extra);
+        }
+        if (prayer == null && title == null && extra != null) intent.putExtra("kind", extra);
         if (title != null) {
             intent.putExtra("title", title);
             intent.putExtra("body", body);
@@ -158,6 +192,14 @@ final class PrayerScheduler {
         }
         out.sort((a, b) -> Long.compare((Long) a[1], (Long) b[1]));
         return out;
+    }
+
+    /** The name shown for a prayer: Dhuhr is Jumu'ah on a Friday. The stored tick stays Dhuhr. */
+    static String label(String prayer, long millis) {
+        if (!"Dhuhr".equals(prayer)) return prayer;
+        Calendar when = Calendar.getInstance();
+        when.setTimeInMillis(millis);
+        return when.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY ? "Jumu'ah" : prayer;
     }
 
     static Object[] nextPrayer(Context app) {
