@@ -117,3 +117,9 @@
   font-weight: 600;
   font-size: 14px;
 }
+
+/* A prayer whose time has not come yet cannot be ticked. */
+.home-track:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

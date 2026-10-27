@@ -1,0 +1,223 @@
+/* Notifications page: compact cards, aligned controls, emerald and gold on the dark theme. */
+.nt-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 14px 24px;
+  color: #e8f3ef;
+  font-size: 15px;
+  line-height: 1.4;
+}
+.nt-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px 14px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.nt-master {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+}
+.nt-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.nt-section__title {
+  margin: 0 4px;
+  color: #f6d58b;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.nt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 48px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.nt-row:last-child {
+  border-bottom: 0;
+}
+.nt-row__label {
+  flex: 1 1 160px;
+  min-width: 0;
+  color: #e8f3ef;
+  overflow-wrap: anywhere;
+}
+.nt-row__control {
+  flex: 0 0 auto;
+  max-width: 100%;
+}
+.nt-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.nt-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.nt-check input,
+.nt-chip input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #00a35a;
+  flex: 0 0 auto;
+}
+.nt-check small {
+  color: #b9d9d0;
+  font-size: 12px;
+  margin-left: 4px;
+}
+.nt-select,
+.nt-input {
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.25);
+  color: #e8f3ef;
+  font: inherit;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+.nt-select {
+  min-width: 150px;
+}
+.nt-input {
+  width: 96px;
+}
+.nt-button {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #00a35a;
+  background: transparent;
+  color: #a7e8c6;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.nt-hint {
+  margin: 4px 0 8px;
+  color: #b9d9d0;
+  font-size: 13px;
+}
+.nt-status {
+  margin: 0;
+  color: #b9d9d0;
+  font-size: 13px;
+}
+.nt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0 10px;
+}
+.nt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #e8f3ef;
+  cursor: pointer;
+  font-size: 14px;
+}
+.nt-chip:has(input:checked) {
+  border-color: #00a35a;
+  background: rgba(0, 163, 90, 0.18);
+}
+.nt-advanced {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 8px 0;
+}
+.nt-advanced summary {
+  cursor: pointer;
+  color: #f6d58b;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 0;
+}
+.nt-advanced[open] summary {
+  margin-bottom: 4px;
+}
+.nt-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+.nt-switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.nt-switch__track {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: background 0.15s ease;
+}
+.nt-switch__track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.15s ease;
+}
+.nt-switch input:checked + .nt-switch__track {
+  background: #00a35a;
+}
+.nt-switch input:checked + .nt-switch__track::after {
+  transform: translateX(20px);
+}
+.nt-switch input:focus-visible + .nt-switch__track {
+  outline: 2px solid #f6d58b;
+  outline-offset: 2px;
+}
+.nt-switch__label {
+  font-weight: 600;
+}
+@media (max-width: 360px) {
+  .nt-page {
+    padding: 10px 10px 20px;
+    font-size: 14px;
+  }
+  .nt-select {
+    min-width: 0;
+    width: 100%;
+  }
+  .nt-row__control {
+    width: 100%;
+  }
+  .nt-inline {
+    width: 100%;
+  }
+  .nt-inline .nt-select {
+    flex: 1 1 auto;
+  }
+}

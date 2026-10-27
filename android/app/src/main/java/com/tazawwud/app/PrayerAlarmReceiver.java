@@ -12,9 +12,8 @@ public class PrayerAlarmReceiver extends BroadcastReceiver {
         String prayer = intent.getStringExtra("prayer");
         String title = intent.getStringExtra("title");
         if (kind != null) {
-            // Sunrise or Sunset: a bell notification, and the Adhkar audio for up to one minute.
+            // Sunrise, or the evening adhkar reminder: a bell notification only.
             PrayerNotifier.showSunEvent(context, kind);
-            AdhkarService.start(context, kind);
         } else if (prayer != null) {
             if ("bell".equals(intent.getStringExtra("mode"))) {
                 String name = PrayerScheduler.label(prayer, System.currentTimeMillis());

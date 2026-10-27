@@ -162,7 +162,7 @@ export function syncNativeSchedule() {
       imsakMinutes: Number.isInteger(settings.imsakMinutes) && settings.imsakMinutes >= 0 && settings.imsakMinutes <= 30 ? settings.imsakMinutes : 0,
       imsakCountdown: settings.imsakCountdown === true,
       prayerModes: (() => {
-        const defaults = { Fajr: "adhan", Dhuhr: "adhan", Asr: "adhan", Maghrib: "adhan", Isha: "adhan", Sunrise: "bell", Sunset: "bell" };
+        const defaults = { Fajr: "adhan", Dhuhr: "adhan", Asr: "adhan", Maghrib: "adhan", Isha: "adhan", Sunrise: "bell", EveningAdhkar: "bell" };
         const saved = read("tazawwud:prayer-modes") || {};
         return { ...defaults, ...saved };
       })(),
@@ -173,6 +173,7 @@ export function syncNativeSchedule() {
       adhkar: prefs.adhkar || {},
       friday: prefs.friday || {},
       tracker: trackerSummary(globalThis.localStorage),
+      location: read("tazawwud:salah-location"),
     }).catch((error) => console.warn("[TAZAWWUD] Native schedule not saved:", error?.message));
   } catch (error) {
     console.warn("[TAZAWWUD] Native schedule could not be read:", error?.message);

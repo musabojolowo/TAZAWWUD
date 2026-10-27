@@ -104,8 +104,8 @@ final class PrayerNotifier {
     static void showSunEvent(Context context, String kind) {
         boolean sunrise = "sunrise".equals(kind);
         showReminder(context,
-            sunrise ? "Sunrise" : "Sunset",
-            sunrise ? "Sunrise has begun. Morning remembrance is playing." : "Sunset has begun. Evening remembrance is playing.",
+            sunrise ? "Sunrise" : "Evening adhkar",
+            sunrise ? "Sunrise has begun." : "One hour after Asr. Time for the evening remembrance.",
             "tazawwud-" + kind);
     }
 

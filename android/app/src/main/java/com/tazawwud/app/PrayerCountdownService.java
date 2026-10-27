@@ -21,11 +21,9 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Keeps one card in the notification shade, updated every minute. It shows the next prayer
- * and its time, the city, the prayer after it, the time left, today's count and the streak:
- * for example "Dhuhr · 12:25 PM", "5h 20m left · 0/5 prayed · 3-day streak", and under it
- * "Babadudu" and "After Asr at 3:46 PM". The count and the streak come from the settings the
- * web app saved, and the count only counts if it is for today.
+ * Keeps one card in the notification shade, updated every minute. It shows the next prayer and
+ * its time, the city and flag, the time left, a row of today's five prayers (passed, next and
+ * upcoming), today's count, the streak, and the prayer after the next one.
  *
  * Android requires a service started with startForegroundService() to call startForeground()
  * within a few seconds. Every path below therefore shows a notification first, even when
@@ -59,8 +57,8 @@ public class PrayerCountdownService extends Service {
     }
 
     /**
-     * Redraws the card right away, for example after the person ticks a prayer in the app.
-     * Does nothing if there are no prayer times yet.
+     * Redraws the card right away, for example after the person ticks a prayer in the app,
+     * or when a city name has been looked up. Does nothing if there are no prayer times yet.
      */
     static void refreshCard(Context context) {
         Notification card = buildCard(context);
@@ -123,23 +121,31 @@ public class PrayerCountdownService extends Service {
         return text;
     }
 
-    /** The city from the saved location, or a plain label when only coordinates are saved. */
-    static String cityLabel(Context context) {
-        try {
-            String json = PrayerStore.loadSettings(context);
-            JSONObject location = json == null ? null : new JSONObject(json).optJSONObject("location");
-            if (location != null && "city".equals(location.optString("type"))) {
-                String city = location.optString("city", "");
-                if (!city.isEmpty()) return city;
-            }
-        } catch (Exception error) {
-            // Fall through to the plain label.
-        }
-        return "Your location";
-    }
-
     static String clock(long millis) {
         return new SimpleDateFormat("h:mm a", Locale.US).format(new Date(millis));
+    }
+
+    /**
+     * A row of today's five prayers: a filled dot for a prayer that has passed, a ring for the
+     * next prayer, and an empty dot for the rest. Each prayer has its name.
+     */
+    static String dotsLine(List<Object[]> today, Object[] next, long now) {
+        StringBuilder row = new StringBuilder();
+        for (Object[] prayer : today) {
+            String name = (String) prayer[0];
+            long at = ((Long) prayer[1]).longValue();
+            String dot;
+            if (next != null && name.equals(next[0]) && at == ((Long) next[1]).longValue()) {
+                dot = "◉";
+            } else if (at <= now) {
+                dot = "●";
+            } else {
+                dot = "○";
+            }
+            if (row.length() > 0) row.append("  ");
+            row.append(dot).append(" ").append(PrayerScheduler.label(name, at));
+        }
+        return row.toString();
     }
 
     /** The prayer after the given one, or the first upcoming prayer when Imsak is the next item. */
@@ -156,12 +162,15 @@ public class PrayerCountdownService extends Service {
     private static Notification buildCard(Context context) {
         Object[] next = PrayerScheduler.nextPrayer(context);
         if (next == null) return null;
+        long now = System.currentTimeMillis();
         String name = (String) next[0];
         long at = ((Long) next[1]).longValue();
-        long minutes = Math.max(0, (at - System.currentTimeMillis()) / 60000L);
+        long minutes = Math.max(0, (at - now) / 60000L);
         String left = minutes >= 60 ? (minutes / 60) + "h " + (minutes % 60) + "m" : minutes + "m";
 
-        StringBuilder bigText = new StringBuilder(cityLabel(context));
+        String place = PrayerLocation.label(context);
+        StringBuilder bigText = new StringBuilder(dotsLine(PrayerScheduler.todayPrayers(context), next, now));
+        bigText.append("\n").append(prayedText(context));
         Object[] after = afterPrayer(context, name, at);
         if (after != null) {
             String afterName = PrayerScheduler.label((String) after[0], ((Long) after[1]).longValue());
@@ -173,8 +182,8 @@ public class PrayerCountdownService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new NotificationCompat.Builder(context, PrayerNotifier.COUNTDOWN_CHANNEL)
             .setSmallIcon(context.getApplicationInfo().icon)
-            .setContentTitle(PrayerScheduler.label(name, at) + " · " + clock(at))
-            .setContentText(left + " left · " + prayedText(context))
+            .setContentTitle("Next: " + PrayerScheduler.label(name, at) + " · " + clock(at))
+            .setContentText(place + " · " + left + " left")
             .setStyle(new NotificationCompat.BigTextStyle().bigText(bigText.toString()))
             .setOngoing(true)
             .setSilent(true)
