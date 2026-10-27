@@ -10,9 +10,20 @@ import { loadPrefs, updatePrefs } from "./notification-prefs.js";
 
 let initializedRoot = null;
 
+const STYLE_HREF = "/css/notifications.css";
+
+function ensureStylesheet() {
+  if (document.querySelector(`link[href="${STYLE_HREF}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = STYLE_HREF;
+  document.head.append(link);
+}
+
 export function initNotifications(root) {
   if (!root || initializedRoot === root) return;
   initializedRoot = root;
+  ensureStylesheet();
   root.innerHTML = renderMarkup();
 
   const notificationManager = getNotificationManager();
@@ -55,42 +66,88 @@ export function initNotifications(root) {
 
 function renderMarkup() {
   return `
-      <div class="salah-preferences">
-        <label class="salah-notification__toggle" for="salah-notifications-enabled">
-          <input id="salah-notifications-enabled" type="checkbox" data-salah-notifications />
-          <span>Enable prayer notifications</span>
-        </label>
-        <label for="salah-muadhin">Muadhin</label>
-        <div class="salah-muadhin-row">
-          <select id="salah-muadhin" class="salah-select" data-salah-muadhin></select>
-          <button type="button" class="salah-button salah-button--secondary" data-salah-muadhin-test>Test</button>
-        </div>
-        <p class="salah-preferences__hint">Named Adhan recordings play from files in this app; Simple Chime works without any audio files.</p>
-        <div class="salah-alerts" data-salah-alerts>
-          <p class="salah-alerts__heading">Prayer alerts</p>
-          <div class="salah-alerts__prayers">
-            <label><input type="checkbox" data-prayer-toggle="Fajr" /> Fajr</label>
-            <label><input type="checkbox" data-prayer-toggle="Dhuhr" /> Dhuhr</label>
-            <label><input type="checkbox" data-prayer-toggle="Asr" /> Asr</label>
-            <label><input type="checkbox" data-prayer-toggle="Maghrib" /> Maghrib</label>
-            <label><input type="checkbox" data-prayer-toggle="Isha" /> Isha</label>
+      <div class="nt-page">
+        <section class="nt-card nt-master">
+          <label class="nt-switch" for="salah-notifications-enabled">
+            <input id="salah-notifications-enabled" type="checkbox" data-salah-notifications />
+            <span class="nt-switch__track" aria-hidden="true"></span>
+            <span class="nt-switch__label">Enable prayer notifications</span>
+          </label>
+          <p class="nt-status" data-notification-status role="status">Checking notification status…</p>
+        </section>
+
+        <section class="nt-section" aria-labelledby="nt-prayer-heading">
+          <h3 class="nt-section__title" id="nt-prayer-heading">Prayer &amp; Adhan</h3>
+          <div class="nt-card">
+            <div class="nt-row">
+              <label class="nt-row__label" for="salah-muadhin">Muadhin</label>
+              <div class="nt-row__control nt-inline">
+                <select id="salah-muadhin" class="nt-select" data-salah-muadhin></select>
+                <button type="button" class="nt-button" data-salah-muadhin-test>Test</button>
+              </div>
+            </div>
+            <p class="nt-hint">Named Adhan recordings play from files in this app. Simple Chime works without any audio files.</p>
+            <div class="nt-chips" role="group" aria-label="Prayers that play an alert">
+              <label class="nt-chip"><input type="checkbox" data-prayer-toggle="Fajr" /><span>Fajr</span></label>
+              <label class="nt-chip"><input type="checkbox" data-prayer-toggle="Dhuhr" /><span>Dhuhr</span></label>
+              <label class="nt-chip"><input type="checkbox" data-prayer-toggle="Asr" /><span>Asr</span></label>
+              <label class="nt-chip"><input type="checkbox" data-prayer-toggle="Maghrib" /><span>Maghrib</span></label>
+              <label class="nt-chip"><input type="checkbox" data-prayer-toggle="Isha" /><span>Isha</span></label>
+            </div>
+            <details class="nt-advanced">
+              <summary>Timing</summary>
+              <div class="nt-row">
+                <label class="nt-row__label" for="salah-alert-offset">Minutes before (−) or after (+) prayer time</label>
+                <div class="nt-row__control">
+                  <input id="salah-alert-offset" class="nt-input" type="number" min="-60" max="60" step="1" inputmode="numeric" data-alert-offset />
+                </div>
+              </div>
+            </details>
           </div>
-          <label for="salah-alert-offset">Minutes before (−) or after (+) prayer time</label>
-          <input id="salah-alert-offset" class="salah-select" type="number" min="-60" max="60" step="1" data-alert-offset />
-          <label><input type="checkbox" data-alert-quran-enabled /> Qur'an reminder</label>
-          <input class="salah-select" type="time" data-alert-quran-time aria-label="Qur'an reminder time" />
-          <label><input type="checkbox" data-alert-adhkar-morning /> Morning Adhkar (after Fajr)</label>
-          <label><input type="checkbox" data-alert-adhkar-evening /> Evening Adhkar (after Asr)</label>
-          <label for="salah-alert-adhkar-delay">Adhkar: minutes after the prayer</label>
-          <input id="salah-alert-adhkar-delay" class="salah-select" type="number" min="0" max="120" step="1" data-alert-adhkar-delay />
-          <label><input type="checkbox" data-alert-friday-enabled /> Friday reminder (1 hour before Jumu'ah)</label>
-          <label for="salah-alert-jumuah">Jumu'ah time</label>
-          <input id="salah-alert-jumuah" class="salah-select" type="time" data-alert-jumuah />
-          <p class="salah-preferences__hint" data-alert-jumuah-hint></p>
-        </div>
-        <p class="salah-notification__status" data-notification-status role="status">
-          Checking notification status…
-        </p>
+        </section>
+
+        <section class="nt-section" aria-labelledby="nt-daily-heading">
+          <h3 class="nt-section__title" id="nt-daily-heading">Daily reminders</h3>
+          <div class="nt-card">
+            <div class="nt-row">
+              <label class="nt-row__label nt-check"><input type="checkbox" data-alert-quran-enabled /><span>Qur’an reminder</span></label>
+              <div class="nt-row__control">
+                <input class="nt-input" type="time" data-alert-quran-time aria-label="Qur’an reminder time" />
+              </div>
+            </div>
+            <div class="nt-row">
+              <label class="nt-row__label nt-check"><input type="checkbox" data-alert-adhkar-morning /><span>Morning Adhkar</span><small>After Fajr</small></label>
+            </div>
+            <div class="nt-row">
+              <label class="nt-row__label nt-check"><input type="checkbox" data-alert-adhkar-evening /><span>Evening Adhkar</span><small>After Asr</small></label>
+            </div>
+            <details class="nt-advanced">
+              <summary>Adhkar timing</summary>
+              <div class="nt-row">
+                <label class="nt-row__label" for="salah-alert-adhkar-delay">Minutes after the prayer</label>
+                <div class="nt-row__control">
+                  <input id="salah-alert-adhkar-delay" class="nt-input" type="number" min="0" max="120" step="1" inputmode="numeric" data-alert-adhkar-delay />
+                </div>
+              </div>
+            </details>
+          </div>
+        </section>
+
+        <section class="nt-section" aria-labelledby="nt-friday-heading">
+          <h3 class="nt-section__title" id="nt-friday-heading">Friday reminder</h3>
+          <div class="nt-card">
+            <div class="nt-row">
+              <label class="nt-row__label nt-check"><input type="checkbox" data-alert-friday-enabled /><span>One hour before Jumu’ah</span></label>
+            </div>
+            <div class="nt-row">
+              <label class="nt-row__label" for="salah-alert-jumuah">Jumu’ah time</label>
+              <div class="nt-row__control">
+                <input id="salah-alert-jumuah" class="nt-input" type="time" data-alert-jumuah />
+              </div>
+            </div>
+            <p class="nt-hint" data-alert-jumuah-hint></p>
+          </div>
+        </section>
       </div>
   `;
 }

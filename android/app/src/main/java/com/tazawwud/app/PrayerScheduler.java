@@ -72,15 +72,11 @@ final class PrayerScheduler {
         }
     }
 
-    /** Sunrise (morning Adhkar and bell) and Sunset (evening Adhkar and bell), unless turned off. */
+    /** Sunrise bell, unless turned off. The evening reminder is the existing Adhkar switch. */
     private static void scheduleSunTimes(Context app, JSONObject settings, Calendar day, JSONObject times, int dayIndex) {
-        String[] kinds = {"sunrise", "sunset"};
-        String[] names = {"Sunrise", "Sunset"};
-        for (int i = 0; i < kinds.length; i++) {
-            if ("off".equals(modeOf(settings, names[i]))) continue;
-            long base = clockOn(day, times.optString(names[i], ""));
-            if (base < 0) continue;
-            scheduleOne(app, SUN_BASE + dayIndex * 2 + i, base, null, null, null, null, kinds[i]);
+        if (!"off".equals(modeOf(settings, "Sunrise"))) {
+            long sunrise = clockOn(day, times.optString("Sunrise", ""));
+            if (sunrise >= 0) scheduleOne(app, SUN_BASE + dayIndex * 2, sunrise, null, null, null, null, "sunrise");
         }
     }
 
@@ -200,6 +196,19 @@ final class PrayerScheduler {
         Calendar when = Calendar.getInstance();
         when.setTimeInMillis(millis);
         return when.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY ? "Jumu'ah" : prayer;
+    }
+
+    /** Today's five prayers, in order, as {name, millis}. Used for the row of dots on the card. */
+    static List<Object[]> todayPrayers(Context app) {
+        List<Object[]> out = new ArrayList<>();
+        Calendar today = Calendar.getInstance();
+        JSONObject times = parse(PrayerStore.loadDay(app, dateKey(today)));
+        if (times == null) return out;
+        for (String name : PRAYERS) {
+            long at = clockOn(today, times.optString(name, ""));
+            if (at >= 0) out.add(new Object[] {name, at});
+        }
+        return out;
     }
 
     static Object[] nextPrayer(Context app) {

@@ -149,10 +149,6 @@ function render(root, query) {
           </span>
         </li>`).join("") || `<li class="stories-status">No names match "${escapeHtml(query)}".</li>`}
     </ol>
-    <p class="settings-note">
-      Names and meanings follow the widely published Tirmidhi order. Detailed explanations
-      are not included yet.
-    </p>
   `;
   const input = root.querySelector("#names99-search");
   input?.addEventListener("input", () => {

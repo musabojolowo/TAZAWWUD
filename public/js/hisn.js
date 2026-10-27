@@ -129,15 +129,9 @@ function backButton(id, label) {
   `;
 }
 
+/** The note at the bottom of this page has been removed. */
 function attributionMarkup() {
-  return `
-    <p class="hisn-attribution">
-      <em>Hisn al-Muslim</em> (Fortress of the Muslim) by Sa'id bin Ali bin Wahf al-Qahtani.
-      Text and English meaning from the open
-      <a href="https://github.com/wafaaelmaandy/Hisn-Muslim-Json" target="_blank" rel="noopener">Hisn-Muslim-Json</a>
-      dataset, shown exactly as supplied. Please check against a printed edition for study or memorisation.
-    </p>
-  `;
+  return "";
 }
 
 function renderLoading(container, meta, onBack) {

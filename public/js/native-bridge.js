@@ -162,7 +162,7 @@ export function syncNativeSchedule() {
       imsakMinutes: Number.isInteger(settings.imsakMinutes) && settings.imsakMinutes >= 0 && settings.imsakMinutes <= 30 ? settings.imsakMinutes : 0,
       imsakCountdown: settings.imsakCountdown === true,
       prayerModes: (() => {
-        const defaults = { Fajr: "adhan", Dhuhr: "adhan", Asr: "adhan", Maghrib: "adhan", Isha: "adhan", Sunrise: "bell", Sunset: "bell" };
+        const defaults = { Fajr: "adhan", Dhuhr: "adhan", Asr: "adhan", Maghrib: "adhan", Isha: "adhan", Sunrise: "bell", EveningAdhkar: "bell" };
         const saved = read("tazawwud:prayer-modes") || {};
         return { ...defaults, ...saved };
       })(),
@@ -173,6 +173,7 @@ export function syncNativeSchedule() {
       adhkar: prefs.adhkar || {},
       friday: prefs.friday || {},
       tracker: trackerSummary(globalThis.localStorage),
+      location: read("tazawwud:salah-location"),
     }).catch((error) => console.warn("[TAZAWWUD] Native schedule not saved:", error?.message));
   } catch (error) {
     console.warn("[TAZAWWUD] Native schedule could not be read:", error?.message);
@@ -183,4 +184,18 @@ export function syncNativeSchedule() {
 if (inNativeApp()) {
   notificationPermissionGranted();
   syncNativeSchedule();
+}
+
+/**
+ * Asks the phone's geocoder for the city and country code of a place. Returns null when it is
+ * not available (in a browser, or with no network), so the caller keeps its plain label.
+ */
+export async function resolvePlaceNative(latitude, longitude) {
+  if (!inNativeApp()) return null;
+  try {
+    const result = await plugin("PrayerBridge").resolvePlace({ latitude, longitude });
+    return result?.name ? { name: String(result.name), countryCode: String(result.countryCode || "") } : null;
+  } catch {
+    return null;
+  }
 }

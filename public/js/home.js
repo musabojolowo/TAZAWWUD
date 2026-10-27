@@ -166,6 +166,34 @@ function trackedDay() {
   return selectedTrackerDay || new Date();
 }
 
+function minutesOf(hhmm) {
+  const match = String(hhmm || "").match(/^(\d{1,2}):(\d{2})/);
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
+/**
+ * A prayer can be ticked once its time has passed. Past days: every prayer.
+ * Future days: none. Today: only the prayers whose time has already come.
+ */
+function canTick(prayerKey, timings, day) {
+  const now = new Date();
+  const todayKey = dayKey(now);
+  const key = dayKey(day);
+  if (key < todayKey) return true;
+  if (key > todayKey) return false;
+  const at = minutesOf(timings[prayerKey]);
+  if (at === null) return false;
+  return now.getHours() * 60 + now.getMinutes() >= at;
+}
+
+/** "Mark all as prayed" ticks only the prayers that can be ticked. */
+function markAllTickable(storage, day, timings) {
+  for (const name of TRACKED_PRAYERS) {
+    if (canTick(name, timings, day)) setPrayed(storage, day, name, true);
+  }
+  return getDayStatus(storage, day);
+}
+
 function trackerStatus() {
   return getDayStatus(globalThis.localStorage, trackedDay());
 }
@@ -199,13 +227,22 @@ function renderDayStrip() {
   return `<div class="home-day-strip" role="group" aria-label="Choose a day to review">${buttons.join("")}</div>`;
 }
 
-// Each prayer plays the Adhan or shows a bell. Sunrise and Sunset show a bell or are off.
+// Each prayer plays the Adhan or shows a bell. Sunrise and the evening adhkar show a bell or are off.
 const PRAYER_MODES_KEY = "tazawwud:prayer-modes";
-const DEFAULT_MODES = { Fajr: "adhan", Dhuhr: "adhan", Asr: "adhan", Maghrib: "adhan", Isha: "adhan", Sunrise: "bell", Sunset: "bell" };
+const DEFAULT_MODES = { Fajr: "adhan", Dhuhr: "adhan", Asr: "adhan", Maghrib: "adhan", Isha: "adhan", Sunrise: "bell", EveningAdhkar: "bell" };
 const MODE_CHOICES = {
   Fajr: ["adhan", "bell"], Dhuhr: ["adhan", "bell"], Asr: ["adhan", "bell"], Maghrib: ["adhan", "bell"], Isha: ["adhan", "bell"],
-  Sunrise: ["bell", "off"], Sunset: ["bell", "off"],
+  Sunrise: ["bell", "off"], EveningAdhkar: ["bell", "off"],
 };
+const EVENT_LABELS = { Sunrise: "Sunrise", EveningAdhkar: "Evening adhkar" };
+
+/** "15:46" plus minutes, as "16:46". */
+function addMinutes(hhmm, minutes) {
+  const [h, m] = String(hhmm || "").split(":").map(Number);
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return "—";
+  const total = (h * 60 + m + minutes + 24 * 60) % (24 * 60);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
 
 function readModes() {
   let saved = null;
@@ -245,16 +282,17 @@ function prayerDisplay(prayer) {
   return { name: prayer.name, arabic: prayer.arabic };
 }
 
-/** Sunrise or Sunset: a bell, or off. Sunset is shown before Maghrib. */
+/** Sunrise (after Fajr) or the evening adhkar reminder (one hour after Asr): a bell, or off. */
 function renderSunRow(name, timings) {
   const mode = readModes()[name];
-  const time = name === "Sunrise" ? timings.Sunrise : timings.Sunset;
+  const label = EVENT_LABELS[name];
+  const time = name === "Sunrise" ? timings.Sunrise : addMinutes(timings.Asr, 60);
   return `
       <li class="home-salah-list__row home-salah-list__row--sun">
         <span class="home-track-spacer" aria-hidden="true"></span>
-        <span class="home-salah-list__name-en">${name}</span>
+        <span class="home-salah-list__name-en">${label}</span>
         <span class="home-salah-list__time">${escapeHtml(time || "—")}</span>
-        <button type="button" class="home-bell${mode !== "off" ? " is-on" : ""}" data-sun-mode="${name}" aria-label="${escapeHtml(modeLabel(name, mode))}">${modeIcon(mode)}</button>
+        <button type="button" class="home-bell${mode !== "off" ? " is-on" : ""}" data-sun-mode="${name}" aria-label="${escapeHtml(modeLabel(label, mode))}">${modeIcon(mode)}</button>
       </li>
     `;
 }
@@ -267,13 +305,14 @@ function renderSalahList(timings, state) {
     const isNext = state.next?.key === prayer.key;
     const tracked = TRACKED_PRAYERS.includes(prayer.name);
     const prayed = tracked && status[prayer.name] === true;
+    const locked = tracked && !canTick(prayer.key, timings, trackedDay());
     const shown = prayerDisplay(prayer);
     const mode = readModes()[prayer.name];
     const alert = tracked
       ? `<button type="button" class="home-bell is-on" data-alert-prayer="${escapeHtml(prayer.name)}" aria-label="${escapeHtml(modeLabel(shown.name, mode))}">${modeIcon(mode)}</button>`
       : "";
     const tick = tracked
-      ? `<button type="button" class="home-track${prayed ? " is-prayed" : ""}" data-track-prayer="${escapeHtml(prayer.name)}" aria-pressed="${prayed}" aria-label="Mark ${escapeHtml(shown.name)} as prayed">${prayed ? "✓" : ""}</button>`
+      ? `<button type="button" class="home-track${prayed ? " is-prayed" : ""}${locked ? " is-locked" : ""}" data-track-prayer="${escapeHtml(prayer.name)}" aria-pressed="${prayed}"${locked ? " disabled" : ""} aria-label="Mark ${escapeHtml(shown.name)} as prayed">${prayed ? "✓" : ""}</button>`
       : `<span class="home-track-spacer" aria-hidden="true"></span>`;
     const row = `
       <li class="home-salah-list__row${isNext ? " is-next" : ""}${isCurrent ? " is-current" : ""}">
@@ -284,9 +323,8 @@ function renderSalahList(timings, state) {
         ${alert}
       </li>
     `;
-    // Sunrise sits after Fajr, and Sunset before Maghrib. Neither has a tick.
+    // Sunrise sits after Fajr. It has no tick. The evening reminder is on the Notifications page.
     if (prayer.key === "Fajr") return row + renderSunRow("Sunrise", timings);
-    if (prayer.key === "Maghrib") return renderSunRow("Sunset", timings) + row;
     return row;
   }).join("");
 
@@ -328,7 +366,7 @@ function wireTracker(root) {
       syncNativeSchedule();
     });
   });
-  // Sunrise and Sunset: bell or off.
+  // Sunrise and the evening adhkar reminder: bell or off.
   root.querySelectorAll("[data-sun-mode]").forEach((button) => {
     button.addEventListener("click", () => {
       const name = button.dataset.sunMode;
@@ -355,12 +393,14 @@ function wireTracker(root) {
     button.addEventListener("click", () => {
       const name = button.dataset.trackPrayer;
       const day = trackedDay();
+      const prayer = PRAYERS.find((p) => p.name === name);
+      if (!prayer || !canTick(prayer.key, lastPrayerArgs?.timings || {}, day)) return;
       const isOn = getDayStatus(storage, day)[name] === true;
       refreshTracker(root, setPrayed(storage, day, name, !isOn));
     });
   });
   root.querySelector("[data-track-all]")?.addEventListener("click", () => {
-    refreshTracker(root, markAllPrayed(storage, trackedDay()));
+    refreshTracker(root, markAllTickable(storage, trackedDay(), lastPrayerArgs?.timings || {}));
   });
 }
 
