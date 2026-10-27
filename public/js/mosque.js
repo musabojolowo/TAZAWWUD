@@ -17,6 +17,17 @@ import { getPositionWithFallback, describeLocationError } from "./geo.js";
 
 const SALAH_LOCATION_KEY = "tazawwud:salah-location";
 
+const PAGE_STYLE_HREF = "/css/pages-redesign.css";
+
+function ensurePageStyles() {
+  if (document.querySelector(`link[href="${PAGE_STYLE_HREF}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = PAGE_STYLE_HREF;
+  document.head.append(link);
+}
+
+
 export function nearbyMosquesUrl(latitude, longitude) {
   return `https://www.google.com/maps/search/mosque/@${latitude},${longitude},14z`;
 }
@@ -79,28 +90,33 @@ function nearMe(root) {
 
 export function initMosque(root) {
   if (!root) return;
+  ensurePageStyles();
   const saved = savedPlace();
   root.innerHTML = `
-    <header class="view-header">
-      <h2 class="view-header__title">Mosque Finder</h2>
-      <p class="view-header__subtitle">Find a mosque near you</p>
-    </header>
-    <div class="mosque-actions">
-      <button type="button" class="salah-button" data-mosque-near-me>Mosques near me</button>
-      ${saved ? `<button type="button" class="salah-button salah-button--secondary" data-mosque-saved>Near ${escapeHtml(saved.label)}</button>` : ""}
+    <section class="mq-hero">
+      <p class="mq-hero__icon" aria-hidden="true">🕌</p>
+      <h2 class="mq-title">Mosque Finder</h2>
+      <p class="mq-subtitle">Find a mosque near you</p>
+    </section>
+    <div class="mq-actions">
+      <button type="button" class="mq-action mq-action--primary" data-mosque-near-me>
+        <span class="mq-action__label">Mosques near me</span>
+        <span class="mq-action__hint">Uses your location</span>
+      </button>
+      ${saved ? `
+      <button type="button" class="mq-action" data-mosque-saved>
+        <span class="mq-action__label">Near ${escapeHtml(saved.label)}</span>
+        <span class="mq-action__hint">Your saved location</span>
+      </button>` : ""}
     </div>
-    <form class="mosque-search" data-mosque-form>
-      <label for="mosque-place">Or search a place</label>
-      <div class="mosque-search__row">
-        <input id="mosque-place" type="text" maxlength="120" placeholder="City, area or address" autocomplete="off" required />
-        <button type="submit" class="salah-button">Search</button>
+    <form class="mq-search" data-mosque-form>
+      <label class="mq-search__label" for="mosque-place">Or search a place</label>
+      <div class="mq-search__row">
+        <input id="mosque-place" class="mq-search__input" type="text" maxlength="120" placeholder="City, area or address" autocomplete="off" required />
+        <button type="submit" class="mq-search__button">Search</button>
       </div>
     </form>
-    <p class="mosque-status" data-mosque-status role="status"></p>
-    <p class="settings-note">
-      Results open in Google Maps in a new tab. Mosque details, opening times and
-      reviews are provided by Google Maps, not by TAZAWWUD.
-    </p>
+    <p class="mq-status" data-mosque-status role="status"></p>
   `;
 
   root.querySelector("[data-mosque-near-me]")?.addEventListener("click", () => nearMe(root));

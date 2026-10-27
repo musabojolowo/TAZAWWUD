@@ -1,0 +1,93 @@
+/* Qiblah, Tasbih and Mosque pages: compact, emerald, gold and dark. */
+.qb-hero, .tb-hero, .mq-hero { text-align: center; padding: 12px 14px 0; color: #e8f3ef; }
+.qb-hero__arabic { margin: 0; color: #f6d58b; font-size: 18px; }
+.qb-title, .tb-title, .mq-title { margin: 2px 0 0; color: #00a35a; font-size: 22px; font-weight: 700; }
+.qb-place { margin: 4px 0 0; color: #b9d9d0; font-size: 13px; }
+.mq-hero__icon { margin: 0; font-size: 28px; }
+.mq-subtitle { margin: 2px 0 0; color: #b9d9d0; font-size: 14px; }
+
+/* Qiblah compass */
+.qb-compass-panel { display: flex; flex-direction: column; align-items: center; padding: 14px; }
+.qb-compass { position: relative; width: min(72vw, 300px); aspect-ratio: 1; border-radius: 50%;
+  border: 2px solid rgba(246, 213, 139, 0.35); background: radial-gradient(circle at 50% 40%, #0f3a2f, #0a1f19);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
+.qb-compass__mark { position: absolute; color: #b9d9d0; font-size: 13px; font-weight: 700; }
+.qb-compass__mark--n { top: 8px; left: 50%; transform: translateX(-50%); color: #f6d58b; }
+.qb-compass__mark--s { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.qb-compass__mark--e { right: 12px; top: 50%; transform: translateY(-50%); }
+.qb-compass__mark--w { left: 12px; top: 50%; transform: translateY(-50%); }
+.qb-compass__needle { position: absolute; inset: 0; transition: transform 0.3s ease-out; }
+.qb-kaaba { position: absolute; top: 14px; left: 50%; width: 26px; height: 26px; margin-left: -13px;
+  background: #111; border: 2px solid #f6d58b; border-radius: 3px; }
+.qb-compass__center { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px;
+  border-radius: 50%; background: #f6d58b; }
+.qb-bearing { margin: 12px 0 0; color: #ffffff; font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.qb-bearing__label { margin: 0; color: #b9d9d0; font-size: 13px; }
+
+/* Qiblah card and buttons */
+.qb-card { margin: 10px 14px 16px; padding: 14px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04); color: #e8f3ef; box-sizing: border-box; }
+.qb-status, .qb-sensor-note, .qb-tip { margin: 0 0 8px; font-size: 14px; }
+.qb-sensor-note { color: #f6d58b; }
+.qb-tip { color: #b9d9d0; font-size: 13px; }
+.qb-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.qb-button, .tb-button, .mq-action, .mq-search__button {
+  min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #00a35a; background: #00a35a;
+  color: #ffffff; font: inherit; font-weight: 600; cursor: pointer; }
+.qb-button--secondary, .tb-button--ghost { background: transparent; color: #a7e8c6; }
+.qb-button:focus-visible, .tb-button:focus-visible, .mq-action:focus-visible, .mq-search__button:focus-visible,
+.tb-select:focus-visible, .mq-search__input:focus-visible { outline: 2px solid #f6d58b; outline-offset: 2px; }
+
+/* Tasbih */
+.tb-card { margin: 10px 14px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04); box-sizing: border-box; }
+.tb-controls { display: grid; gap: 8px; }
+.tb-field { display: grid; gap: 4px; }
+.tb-label { color: #b9d9d0; font-size: 13px; }
+.tb-select, .mq-search__input { width: 100%; height: 40px; padding: 0 10px; border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(0, 0, 0, 0.25); color: #e8f3ef;
+  font: inherit; box-sizing: border-box; }
+.tb-dhikr { text-align: center; padding: 8px 14px 0; color: #e8f3ef; }
+.tb-dhikr__arabic { margin: 0; color: #a7e8c6; font-size: 30px; line-height: 1.6; font-family: "Noto Naskh Arabic", serif; }
+.tb-dhikr__label { margin: 2px 0 0; color: #e8f3ef; font-size: 15px; font-weight: 600; }
+.tb-dhikr__meaning { margin: 2px 0 0; color: #b9d9d0; font-size: 13px; }
+.tb-counter { position: relative; width: min(74vw, 300px); aspect-ratio: 1; margin: 12px auto 0; }
+.tb-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tb-ring__track { fill: none; stroke: rgba(255, 255, 255, 0.08); stroke-width: 8; }
+.tb-ring__progress { fill: none; stroke: #f6d58b; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.25s ease-out; }
+.tb-tap { position: absolute; inset: 16px; border-radius: 50%; border: 0; cursor: pointer;
+  background: radial-gradient(circle at 50% 35%, #00a35a, #0b5c3b); color: #ffffff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.tb-tap:active { transform: scale(0.98); }
+.tb-tap__count { font-size: 56px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.tb-tap__target { color: #d7f5e6; font-size: 14px; margin-top: 4px; }
+.tb-counter.is-complete .tb-ring__progress { stroke: #00a35a; }
+.tb-status { margin: 10px 14px 0; text-align: center; color: #f6d58b; font-size: 14px; min-height: 18px; }
+.tb-sets { margin: 4px 14px 0; text-align: center; color: #b9d9d0; font-size: 13px; min-height: 16px; }
+.tb-reset { margin: 12px 14px 20px; display: flex; justify-content: center; }
+.tb-confirm { width: 100%; padding: 12px; border-radius: 14px; border: 1px solid rgba(246, 213, 139, 0.4);
+  background: rgba(246, 213, 139, 0.06); box-sizing: border-box; text-align: center; }
+.tb-confirm__text { margin: 0 0 10px; color: #e8f3ef; }
+.tb-confirm__buttons { display: flex; gap: 8px; justify-content: center; }
+.tb-button--danger { background: #b3261e; border-color: #b3261e; }
+
+/* Mosque Finder */
+.mq-actions { display: grid; gap: 10px; padding: 14px; }
+.mq-action { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 12px 14px; }
+.mq-action--primary { background: #00a35a; }
+.mq-action:not(.mq-action--primary) { background: rgba(255, 255, 255, 0.04); color: #e8f3ef; border-color: rgba(255, 255, 255, 0.14); }
+.mq-action__label { font-size: 15px; font-weight: 600; }
+.mq-action__hint { font-size: 12px; opacity: 0.8; }
+.mq-search { padding: 0 14px; display: grid; gap: 6px; }
+.mq-search__label { color: #b9d9d0; font-size: 13px; }
+.mq-search__row { display: flex; gap: 8px; }
+.mq-search__row .mq-search__input { flex: 1 1 auto; min-width: 0; }
+.mq-search__button { flex: 0 0 auto; }
+.mq-status { margin: 12px 14px 20px; min-height: 18px; color: #f6d58b; font-size: 14px; }
+.mq-status.is-error { color: #ffb4a9; }
+
+@media (max-width: 360px) {
+  .tb-dhikr__arabic { font-size: 26px; }
+  .tb-tap__count { font-size: 46px; }
+  .qb-bearing { font-size: 28px; }
+}

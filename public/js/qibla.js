@@ -7,7 +7,7 @@
 // ============================================================================
 
 import { getPositionWithFallback, describeLocationError } from "./geo.js";
-import { locator } from "./native-bridge.js";
+import { locator, inNativeApp, resolvePlaceNative } from "./native-bridge.js";
 import { magneticDeclination } from "./magnetic.js";
 
 const KAABA = { latitude: 21.422487, longitude: 39.826206 };
@@ -90,38 +90,35 @@ function bearingLabel(bearing) {
 }
 
 function renderShell(root) {
+  ensurePageStyles();
   root.innerHTML = `
-    <header class="qiblah-header">
-      <span class="material-symbols-rounded icon icon--lg" aria-hidden="true">explore</span>
-      <h2>Qiblah Direction</h2>
-      <p class="qiblah-header__arabic" lang="ar" dir="rtl">القبلة</p>
-      <p class="qiblah-header__note">Find the direction of the Kaaba from your location.</p>
-    </header>
-    <section class="qiblah-panel" aria-labelledby="qiblah-location-heading">
-      <h3 id="qiblah-location-heading" class="qiblah-panel__heading">Your direction</h3>
-      <p class="qiblah-status" data-qiblah-status role="status">Location is needed to calculate the Qiblah.</p>
-      <button type="button" class="qiblah-button" data-qiblah-location>
-        <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">my_location</span>
-        Use my location
-      </button>
-      <button type="button" class="qiblah-button qiblah-button--secondary" data-qiblah-orientation hidden>
-        Enable compass
-      </button>
+    <section class="qb-hero">
+      <p class="qb-hero__arabic" lang="ar" dir="rtl">القبلة</p>
+      <h2 class="qb-title">Qiblah Direction</h2>
+      <p class="qb-place" data-qiblah-place>Your location</p>
     </section>
-    <section class="qiblah-compass-panel" data-qiblah-compass-panel hidden aria-label="Qiblah compass">
-      <div class="qiblah-compass" data-qiblah-compass>
-        <span class="qiblah-compass__direction qiblah-compass__direction--north">N</span>
-        <span class="qiblah-compass__direction qiblah-compass__direction--east">E</span>
-        <span class="qiblah-compass__direction qiblah-compass__direction--south">S</span>
-        <span class="qiblah-compass__direction qiblah-compass__direction--west">W</span>
-        <div class="qiblah-compass__needle" data-qiblah-needle aria-hidden="true">
-          <span class="material-symbols-rounded">navigation</span>
+    <section class="qb-compass-panel" data-qiblah-compass-panel hidden aria-label="Qiblah compass">
+      <div class="qb-compass" data-qiblah-compass>
+        <span class="qb-compass__mark qb-compass__mark--n">N</span>
+        <span class="qb-compass__mark qb-compass__mark--e">E</span>
+        <span class="qb-compass__mark qb-compass__mark--s">S</span>
+        <span class="qb-compass__mark qb-compass__mark--w">W</span>
+        <div class="qb-compass__needle" data-qiblah-needle aria-hidden="true">
+          <span class="qb-kaaba"></span>
         </div>
-        <div class="qiblah-compass__center" aria-hidden="true"></div>
+        <div class="qb-compass__center" aria-hidden="true"></div>
       </div>
-      <p class="qiblah-bearing" data-qiblah-bearing>--°</p>
-      <p class="qiblah-bearing__label" data-qiblah-bearing-label>Qiblah bearing</p>
-      <p class="qiblah-sensor-note" data-qiblah-sensor-note>Exact bearing from your location.</p>
+      <p class="qb-bearing" data-qiblah-bearing>--°</p>
+      <p class="qb-bearing__label" data-qiblah-bearing-label>Qiblah bearing</p>
+    </section>
+    <section class="qb-card" aria-label="Qiblah status">
+      <p class="qb-status" data-qiblah-status role="status">Location is needed to calculate the Qiblah.</p>
+      <p class="qb-sensor-note" data-qiblah-sensor-note>Exact bearing from your location.</p>
+      <p class="qb-tip">For the compass, move your phone in a figure eight to calibrate it, and keep it away from metal.</p>
+      <div class="qb-actions">
+        <button type="button" class="qb-button" data-qiblah-location>Use my location</button>
+        <button type="button" class="qb-button qb-button--secondary" data-qiblah-orientation hidden>Enable compass</button>
+      </div>
     </section>
   `;
 }
@@ -160,6 +157,35 @@ function getHeading(event) {
 
 function supportsOrientation() {
   return "DeviceOrientationEvent" in window;
+}
+
+const QIBLAH_STYLE_HREF = "/css/pages-redesign.css";
+
+function ensurePageStyles() {
+  if (document.querySelector(`link[href="${QIBLAH_STYLE_HREF}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = QIBLAH_STYLE_HREF;
+  document.head.append(link);
+}
+
+function flagFor(countryCode) {
+  const code = String(countryCode || "").toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return "";
+  return String.fromCodePoint(0x1f1e6 + code.charCodeAt(0) - 65, 0x1f1e6 + code.charCodeAt(1) - 65);
+}
+
+/** The city and flag for the position, from the phone's geocoder. Shows coordinates when it is not available. */
+function showPlace(root, latitude, longitude) {
+  const label = root.querySelector("[data-qiblah-place]");
+  if (!label) return;
+  label.textContent = `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+  if (!inNativeApp()) return;
+  resolvePlaceNative(latitude, longitude).then((place) => {
+    if (!place?.name || !root.contains(label)) return;
+    const flag = flagFor(place.countryCode);
+    label.textContent = flag ? `${flag} ${place.name}` : place.name;
+  });
 }
 
 export function initQibla(root) {
@@ -252,6 +278,7 @@ export function initQibla(root) {
         declinationDeg = magneticDeclination(coords.latitude, coords.longitude);
         setBearing(root, qiblaBearing);
         renderStatus(root, `Qiblah calculated for ${coords.latitude.toFixed(2)}°, ${coords.longitude.toFixed(2)}°.`);
+        showPlace(root, coords.latitude, coords.longitude);
         if (supportsOrientation()) {
           orientationButton.hidden = false;
           // Not { once: true }: stopQibla() (view-leave cleanup, see below)
