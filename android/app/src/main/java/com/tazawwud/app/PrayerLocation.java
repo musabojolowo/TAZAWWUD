@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.location.Address;
 import android.location.Geocoder;
+import android.os.Build;
 
 import org.json.JSONObject;
 
@@ -11,6 +12,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * The city name and country flag for the notification card, from the saved location.
@@ -83,9 +87,9 @@ final class PrayerLocation {
                 String typedCity = location.optString("city", "").trim();
                 if ("city".equals(location.optString("type"))) {
                     String query = typedCity + ", " + location.optString("country", "").trim();
-                    results = geocoder.getFromLocationName(query, 1);
+                    results = forwardGeocode(geocoder, query);
                 } else {
-                    results = geocoder.getFromLocation(location.optDouble("latitude"), location.optDouble("longitude"), 1);
+                    results = reverseGeocode(geocoder, location.optDouble("latitude"), location.optDouble("longitude"));
                 }
                 if (results != null && !results.isEmpty()) {
                     Address address = results.get(0);
@@ -117,7 +121,7 @@ final class PrayerLocation {
         if (Double.isNaN(latitude) || Double.isNaN(longitude)) return null;
         try {
             Geocoder geocoder = new Geocoder(context.getApplicationContext(), Locale.getDefault());
-            List<Address> results = geocoder.getFromLocation(latitude, longitude, 1);
+            List<Address> results = reverseGeocode(geocoder, latitude, longitude);
             if (results == null || results.isEmpty()) return null;
             Address address = results.get(0);
             String name = firstNonEmpty(address.getLocality(), address.getSubAdminArea(), address.getAdminArea());
@@ -127,6 +131,48 @@ final class PrayerLocation {
         } catch (Exception error) {
             return null;
         }
+    }
+
+    /** Android 13 and later: the callback method, waited for on this background thread. */
+    private static List<Address> reverseGeocode(Geocoder geocoder, double latitude, double longitude) throws Exception {
+        if (Build.VERSION.SDK_INT >= 33) {
+            AtomicReference<List<Address>> result = new AtomicReference<>();
+            CountDownLatch done = new CountDownLatch(1);
+            geocoder.getFromLocation(latitude, longitude, 1, addresses -> {
+                result.set(addresses);
+                done.countDown();
+            });
+            done.await(20, TimeUnit.SECONDS);
+            return result.get();
+        }
+        return legacyReverseGeocode(geocoder, latitude, longitude);
+    }
+
+    /** Android 13 and later: the callback method, waited for on this background thread. */
+    private static List<Address> forwardGeocode(Geocoder geocoder, String query) throws Exception {
+        if (Build.VERSION.SDK_INT >= 33) {
+            AtomicReference<List<Address>> result = new AtomicReference<>();
+            CountDownLatch done = new CountDownLatch(1);
+            geocoder.getFromLocationName(query, 1, addresses -> {
+                result.set(addresses);
+                done.countDown();
+            });
+            done.await(20, TimeUnit.SECONDS);
+            return result.get();
+        }
+        return legacyForwardGeocode(geocoder, query);
+    }
+
+    /** Older Android versions only. The method is deprecated on newer ones, which use the callback above. */
+    @SuppressWarnings("deprecation")
+    private static List<Address> legacyReverseGeocode(Geocoder geocoder, double latitude, double longitude) throws Exception {
+        return geocoder.getFromLocation(latitude, longitude, 1);
+    }
+
+    /** Older Android versions only. The method is deprecated on newer ones, which use the callback above. */
+    @SuppressWarnings("deprecation")
+    private static List<Address> legacyForwardGeocode(Geocoder geocoder, String query) throws Exception {
+        return geocoder.getFromLocationName(query, 1);
     }
 
     private static String firstNonEmpty(String... values) {

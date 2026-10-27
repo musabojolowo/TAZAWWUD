@@ -30,6 +30,7 @@
   />
 
   <!-- Styles -->
+  <link rel="stylesheet" href="/css/sidebar-redesign.css" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -109,8 +110,8 @@
         <p id="offline-status" class="settings-note">Checking…</p>
       </section>
 
-      <section class="settings-section" aria-labelledby="settings-reminders-heading">
-        <h3 id="settings-reminders-heading" class="settings-section__heading">Daily Reminders</h3>
+      <details class="settings-section settings-section--reminders" open>
+        <summary id="settings-reminders-heading" class="settings-section__heading">Daily Reminders</summary>
         <p class="settings-note">
           Local notifications at a time you choose, every day. Only fire while TAZAWWUD is open
           (or recently open) — not true push notifications when the app is fully closed.
@@ -125,7 +126,7 @@
           <input type="time" id="reminder-time-input" required />
           <button type="submit" class="salah-button">Add Reminder</button>
         </form>
-      </section>
+      </details>
 
       <details class="settings-section settings-section--privacy">
         <summary id="settings-privacy-heading" class="settings-section__heading">Privacy &amp; Data</summary>
@@ -143,12 +144,8 @@
       <section class="settings-section settings-downloads-section" aria-label="Offline downloads">
         <div id="settings-downloads" class="settings-downloads"></div>
       </section>
-      <section class="settings-section" aria-labelledby="settings-about-heading">
-        <h3 id="settings-about-heading" class="settings-section__heading">About</h3>
-        <p class="settings-note">
-          <strong>TAZAWWUD</strong> <span lang="ar" dir="rtl">تَزَوُّد</span> — your provision for
-          every day. Qur'an text: alquran.cloud. Prayer times: aladhan.com. Free and ad-free.
-        </p>
+      <section class="settings-section settings-section--nav" aria-label="About">
+        <button type="button" class="settings-row-btn settings-row-btn--about" data-goto-view="about">About TAZAWWUD</button>
       </section>
     </div>
   </aside>
@@ -320,6 +317,14 @@
         <h2 class="view-header__title">Notifications &amp; Adhan</h2>
       </div>
       <div id="notifications-root" class="notifications-root"></div>
+    </section>
+
+    <!-- ================================================================
+         VIEW: ABOUT — everything about TAZAWWUD, its sources and credits.
+         Rendered by public/js/about-view.js.
+         ================================================================ -->
+    <section id="view-about" class="view" data-view-panel="about" hidden>
+      <div id="about-root" class="about-root"></div>
     </section>
 
     <section id="view-bookmarks" class="view" data-view-panel="bookmarks" hidden>

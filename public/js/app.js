@@ -31,7 +31,7 @@ export const appState = {
 // "reader" and "mushaf" are reachable (Surah tapped from the list, or the
 // switch-view links) but have no nav link of their own — their nav-highlight
 // is treated the same as "quran" (see NAV_GROUP).
-const VALID_VIEWS = ["home", "quran", "sunnah", "salah", "qiblah", "calendar", "tasbih", "stories", "admin", "dua", "names99", "mosque", "reader", "mushaf", "bookmarks", "notifications"];
+const VALID_VIEWS = ["home", "quran", "sunnah", "salah", "qiblah", "calendar", "tasbih", "stories", "admin", "dua", "names99", "mosque", "reader", "mushaf", "bookmarks", "notifications", "about"];
 const NAV_GROUP = { reader: "quran", mushaf: "quran" };
 
 let quranModulePromise = null;
@@ -360,6 +360,13 @@ function showView(viewName) {
     loadNotificationsModule()
       .then(({ initNotifications }) => initNotifications(notificationsRootEl))
       .catch((error) => console.error("[TAZAWWUD] Failed to load Notifications:", error));
+  }
+
+  if (viewName === "about") {
+    const aboutRootEl = document.getElementById("about-root");
+    import("/js/about-view.js")
+      .then(({ initAbout }) => initAbout(aboutRootEl))
+      .catch((error) => console.error("[TAZAWWUD] Failed to load About:", error));
   }
 
   if (viewName === "bookmarks") {
