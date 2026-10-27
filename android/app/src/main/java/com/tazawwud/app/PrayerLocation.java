@@ -109,6 +109,26 @@ final class PrayerLocation {
         }).start();
     }
 
+    /**
+     * The city name and country code for coordinates, from the geocoder, or null if it cannot resolve them.
+     * Used by the Salah page through the bridge. Call it from a background thread.
+     */
+    static String[] reverse(Context context, double latitude, double longitude) {
+        if (Double.isNaN(latitude) || Double.isNaN(longitude)) return null;
+        try {
+            Geocoder geocoder = new Geocoder(context.getApplicationContext(), Locale.getDefault());
+            List<Address> results = geocoder.getFromLocation(latitude, longitude, 1);
+            if (results == null || results.isEmpty()) return null;
+            Address address = results.get(0);
+            String name = firstNonEmpty(address.getLocality(), address.getSubAdminArea(), address.getAdminArea());
+            if (name == null) return null;
+            String code = address.getCountryCode();
+            return new String[] {name, code == null ? "" : code};
+        } catch (Exception error) {
+            return null;
+        }
+    }
+
     private static String firstNonEmpty(String... values) {
         for (String value : values) {
             if (value != null && !value.trim().isEmpty()) return value.trim();

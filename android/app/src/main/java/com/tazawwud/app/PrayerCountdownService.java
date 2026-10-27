@@ -169,7 +169,8 @@ public class PrayerCountdownService extends Service {
         String left = minutes >= 60 ? (minutes / 60) + "h " + (minutes % 60) + "m" : minutes + "m";
 
         String place = PrayerLocation.label(context);
-        StringBuilder bigText = new StringBuilder(dotsLine(PrayerScheduler.todayPrayers(context), next, now));
+        StringBuilder bigText = new StringBuilder(place).append("\n")
+            .append(dotsLine(PrayerScheduler.todayPrayers(context), next, now));
         bigText.append("\n").append(prayedText(context));
         Object[] after = afterPrayer(context, name, at);
         if (after != null) {

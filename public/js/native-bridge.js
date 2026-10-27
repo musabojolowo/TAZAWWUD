@@ -185,3 +185,17 @@ if (inNativeApp()) {
   notificationPermissionGranted();
   syncNativeSchedule();
 }
+
+/**
+ * Asks the phone's geocoder for the city and country code of a place. Returns null when it is
+ * not available (in a browser, or with no network), so the caller keeps its plain label.
+ */
+export async function resolvePlaceNative(latitude, longitude) {
+  if (!inNativeApp()) return null;
+  try {
+    const result = await plugin("PrayerBridge").resolvePlace({ latitude, longitude });
+    return result?.name ? { name: String(result.name), countryCode: String(result.countryCode || "") } : null;
+  } catch {
+    return null;
+  }
+}

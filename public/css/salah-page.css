@@ -1,0 +1,216 @@
+/* Salah Times page: compact cards and aligned rows, on the emerald, gold and dark theme. */
+.sp-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px 4px;
+  color: #e8f3ef;
+}
+.sp-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+}
+.sp-header .salah-header__arabic {
+  margin: 0;
+  color: #f6d58b;
+  font-size: 16px;
+}
+.sp-header .salah-header__date {
+  margin: 0;
+  color: #b9d9d0;
+  font-size: 13px;
+}
+.sp-card {
+  margin: 10px 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  box-sizing: border-box;
+  min-width: 0;
+  color: #e8f3ef;
+}
+.sp-label {
+  margin: 0;
+  color: #f6d58b;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.sp-location__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sp-location__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sp-location .salah-location {
+  margin: 8px 0 0;
+  font-size: 16px;
+}
+.sp-chip {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #00a35a;
+  background: #00a35a;
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sp-chip--ghost {
+  background: transparent;
+  color: #a7e8c6;
+}
+.sp-chip:focus-visible,
+.sp-settings summary:focus-visible {
+  outline: 2px solid #f6d58b;
+  outline-offset: 2px;
+}
+.sp-city-form {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.sp-city-form input {
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.25);
+  color: #e8f3ef;
+  font: inherit;
+  box-sizing: border-box;
+  width: 100%;
+}
+.sp-city-form .sp-chip {
+  margin-top: 4px;
+  justify-self: start;
+}
+.sp-settings {
+  padding: 0;
+}
+.sp-settings summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  color: #f6d58b;
+  font-weight: 700;
+  list-style-position: inside;
+}
+.sp-settings__body {
+  display: grid;
+  gap: 6px;
+  padding: 0 14px 14px;
+}
+.sp-settings__body label {
+  color: #b9d9d0;
+  font-size: 13px;
+}
+.sp-settings__body .salah-select {
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.25);
+  color: #e8f3ef;
+  font: inherit;
+  box-sizing: border-box;
+  width: 100%;
+}
+.sp-settings__body .salah-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #e8f3ef;
+  font-size: 14px;
+}
+.sp-times .salah-prayer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+.sp-times .salah-prayer:last-child {
+  border-bottom: 0;
+}
+.sp-times .salah-prayer > div:first-child {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  min-width: 0;
+}
+.sp-times .salah-prayer__name {
+  color: #e8f3ef;
+  font-weight: 600;
+}
+.sp-times .salah-prayer__arabic {
+  color: #a7e8c6;
+  font-size: 15px;
+}
+.sp-times .salah-prayer__time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: #ffffff;
+}
+.sp-times .salah-prayer > div:last-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sp-times .salah-prayer.is-current {
+  background: rgba(0, 163, 90, 0.12);
+  border-radius: 10px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.sp-times .salah-prayer.is-next .salah-prayer__name {
+  color: #f6d58b;
+}
+.sp-times .salah-prayer__status {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #00a35a;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.sp-times .salah-prayer--imsak {
+  opacity: 0.85;
+  border-bottom-style: dashed;
+}
+.sp-times .salah-prayer__caption {
+  color: #b9d9d0;
+  font-size: 12px;
+  width: 100%;
+}
+.sp-times .salah-message {
+  color: #b9d9d0;
+  margin: 8px 0 0;
+}
+@media (max-width: 360px) {
+  .sp-card {
+    margin: 8px 10px;
+    padding: 10px 12px;
+  }
+  .sp-location__top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .sp-times .salah-prayer__arabic {
+    font-size: 14px;
+  }
+}

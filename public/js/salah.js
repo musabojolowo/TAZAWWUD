@@ -5,7 +5,7 @@
 // after the user chooses the automatic-location action.
 // ============================================================================
 
-import { locator, syncNativeSchedule } from "./native-bridge.js";
+import { locator, syncNativeSchedule, inNativeApp, resolvePlaceNative } from "./native-bridge.js";
 import { getPositionWithFallback, describeLocationError } from "./geo.js";
 import { estimatePrayerTimes, fetchJsonWithFallback, renderFallbackNotice } from "./error-boundary.js";
 
@@ -127,34 +127,49 @@ function escapeHtml(value) {
   })[character]);
 }
 
+const SALAH_STYLE_HREF = "/css/salah-page.css";
+
+function ensureSalahStylesheet() {
+  if (document.querySelector(`link[href="${SALAH_STYLE_HREF}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = SALAH_STYLE_HREF;
+  document.head.append(link);
+}
+
 function renderShell(root) {
+  ensureSalahStylesheet();
   const settings = loadSettings();
   root.innerHTML = `
-    <header class="salah-header">
-      <h2>Salah Times</h2>
-      <p class="salah-header__arabic" lang="ar" dir="rtl">مواقيت الصلاة</p>
+    <header class="sp-header">
+      <div>
+        <h2 class="sp-title">Salah Times</h2>
+        <p class="salah-header__arabic" lang="ar" dir="rtl">مواقيت الصلاة</p>
+      </div>
       <p class="salah-header__date" data-salah-date>Today's date</p>
     </header>
-    <section class="salah-location-panel" aria-labelledby="salah-location-heading">
-      <h3 id="salah-location-heading" class="salah-panel-heading">Location</h3>
-      <p class="salah-location" data-salah-location>Choose automatic location or enter your city.</p>
-      <div class="salah-actions">
-        <button type="button" class="salah-button" data-salah-geolocation>Use my location</button>
-        <button type="button" class="salah-button salah-button--secondary" data-salah-city-toggle>Choose a city</button>
+
+    <section class="sp-card sp-location" aria-labelledby="salah-location-heading">
+      <div class="sp-location__top">
+        <h3 id="salah-location-heading" class="sp-label">Location</h3>
+        <div class="sp-location__buttons">
+          <button type="button" class="sp-chip" data-salah-geolocation>Use my location</button>
+          <button type="button" class="sp-chip sp-chip--ghost" data-salah-city-toggle>Choose a city</button>
+        </div>
       </div>
-      <form class="salah-city-form" data-salah-city-form hidden>
-        <div>
-          <label for="salah-city">City</label>
-          <input id="salah-city" name="city" type="text" autocomplete="address-level2" placeholder="Ilorin" required />
-        </div>
-        <div>
-          <label for="salah-country">Country</label>
-          <input id="salah-country" name="country" type="text" autocomplete="country-name" placeholder="Nigeria" required />
-        </div>
-        <button type="submit" class="salah-button">Load prayer times</button>
+      <p class="salah-location" data-salah-location>Choose automatic location or enter your city.</p>
+      <form class="sp-city-form" data-salah-city-form hidden>
+        <label for="salah-city">City</label>
+        <input id="salah-city" name="city" type="text" autocomplete="address-level2" placeholder="e.g. London" required />
+        <label for="salah-country">Country</label>
+        <input id="salah-country" name="country" type="text" autocomplete="country-name" placeholder="e.g. United Kingdom" required />
+        <button type="submit" class="sp-chip">Load prayer times</button>
       </form>
-      <div class="salah-preferences" aria-labelledby="salah-preferences-heading">
-        <h4 id="salah-preferences-heading" class="salah-preferences__heading">Prayer calculation</h4>
+    </section>
+
+    <details class="sp-card sp-settings" data-salah-settings>
+      <summary>Prayer settings</summary>
+      <div class="sp-settings__body">
         <label for="salah-method">Calculation method</label>
         <select id="salah-method" class="salah-select" data-salah-method>
           ${renderOptions(CALCULATION_METHODS, settings.method)}
@@ -172,9 +187,10 @@ function renderShell(root) {
         <label class="salah-toggle"><input type="checkbox" data-salah-imsak-countdown ${settings.imsakCountdown ? "checked" : ""} /> Imsak countdown on Home</label>
         <p class="salah-preferences__hint">Preferences are saved and applied to your prayer times.</p>
       </div>
-    </section>
-    <section class="salah-times-panel" aria-labelledby="salah-times-heading">
-      <h3 id="salah-times-heading" class="salah-panel-heading">Today's prayers</h3>
+    </details>
+
+    <section class="sp-card sp-times" aria-labelledby="salah-times-heading">
+      <h3 id="salah-times-heading" class="sp-label">Today's prayers</h3>
       <div class="salah-times" data-salah-times>
         <p class="salah-message">Select a location to load prayer times.</p>
       </div>
@@ -237,16 +253,79 @@ export function getPrayerState(timings) {
   return { current, next: prayerMinutes[nextIndex] };
 }
 
+const PLACE_CACHE_KEY = "tazawwud:salah-place";
+const pendingPlaces = new Set();
+
+function placeKey(location) {
+  return `${Number(location.latitude).toFixed(2)},${Number(location.longitude).toFixed(2)}`;
+}
+
+function readPlaceCache() {
+  try {
+    return JSON.parse(localStorage.getItem(PLACE_CACHE_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+/** The flag emoji for a two-letter country code. Empty if the code is not valid. */
+export function flagFor(countryCode) {
+  const code = String(countryCode || "").toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return "";
+  return String.fromCodePoint(0x1f1e6 + code.charCodeAt(0) - 65, 0x1f1e6 + code.charCodeAt(1) - 65);
+}
+
+/**
+ * The city and flag for saved coordinates, once the phone's geocoder has resolved them.
+ * Until then, the plain label. The lookup runs in the app only, and is cached.
+ */
+function resolvedPlaceLabel(location) {
+  const hit = readPlaceCache()[placeKey(location)];
+  if (hit?.name) {
+    const flag = flagFor(hit.countryCode);
+    return flag ? `${flag} ${hit.name}` : hit.name;
+  }
+  requestPlace(location);
+  return "Your current location";
+}
+
+function requestPlace(location) {
+  const key = placeKey(location);
+  if (pendingPlaces.has(key) || !inNativeApp()) return;
+  pendingPlaces.add(key);
+  resolvePlaceNative(location.latitude, location.longitude)
+    .then((place) => {
+      if (!place?.name) return;
+      const cache = readPlaceCache();
+      cache[key] = { name: place.name, countryCode: place.countryCode || "" };
+      localStorage.setItem(PLACE_CACHE_KEY, JSON.stringify(cache));
+      const label = document.querySelector("[data-salah-location]");
+      if (label) label.innerHTML = `<strong>${escapeHtml(resolvedPlaceLabel(location))}</strong>`;
+      window.dispatchEvent(new CustomEvent("tazawwud:place-resolved"));
+    })
+    .catch(() => {})
+    .finally(() => pendingPlaces.delete(key));
+}
+
+/** The text to show for a location label: the resolved city when the label is the plain coordinates label. */
+function displayLabel(label) {
+  if (label === "Your current location" && currentLocation?.type === "coordinates") {
+    return resolvedPlaceLabel(currentLocation);
+  }
+  return label;
+}
+
 function renderPrayerTimes(root, timings, locationLabel) {
   const state = getPrayerState(timings);
   root.setAttribute("aria-busy", "false");
-  root.querySelector("[data-salah-location]").innerHTML = `<strong>${escapeHtml(locationLabel)}</strong>`;
+  root.querySelector("[data-salah-location]").innerHTML = `<strong>${escapeHtml(displayLabel(locationLabel))}</strong>`;
   const imsak = imsakTimeFor(timings, loadSettings().imsakMinutes);
   const imsakRow = imsak === null ? "" : `
-      <div class="salah-prayer" data-prayer-key="Imsak">
+      <div class="salah-prayer salah-prayer--imsak" data-prayer-key="Imsak">
         <div>
           <span class="salah-prayer__name">Imsak</span>
           <span class="salah-prayer__arabic" lang="ar" dir="rtl">الإمساك</span>
+          <span class="salah-prayer__caption">Before Fajr</span>
         </div>
         <div>
           <span class="salah-prayer__time">${escapeHtml(imsak)}</span>
@@ -388,7 +467,7 @@ export function hasSavedLocation() {
 
 function locationLabelFor(location) {
   if (!location) return null;
-  return location.type === "coordinates" ? "Your current location" : `${location.city}, ${location.country}`;
+  return location.type === "coordinates" ? resolvedPlaceLabel(location) : `${location.city}, ${location.country}`;
 }
 
 async function fetchTimingsForLocation(location) {
