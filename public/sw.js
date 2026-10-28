@@ -6,7 +6,7 @@
 // Bump CACHE_VERSION whenever cached assets change, to bust old caches.
 // ============================================================================
 
-const CACHE_VERSION = "tazawwud-shell-v83";
+const CACHE_VERSION = "tazawwud-shell-v84";
 // Icon and text fonts are kept in their own cache, so they survive version changes.
 const FONT_CACHE = "tazawwud-fonts-v1";
 
@@ -24,6 +24,8 @@ const APP_SHELL_ASSETS = [
   "/css/notifications.css",
   "/css/salah-page.css",
   "/css/pages-redesign.css",
+  "/css/home-redesign.css",
+  "/css/tracker.css",
   "/css/sidebar-redesign.css",
   "/js/about-view.js",
   "/js/app.js",

@@ -266,8 +266,13 @@ function nextMode(name, current) {
   return choices[(choices.indexOf(current) + 1) % choices.length];
 }
 
+const ICON_SPEAKER = '<svg class="tz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const ICON_BELL = '<svg class="tz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a2 2 0 0 0 3.4 0"/></svg>';
+const ICON_BELL_OFF = '<svg class="tz-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a2 2 0 0 0 3.4 0"/><path d="M3 3l18 18"/></svg>';
+
+/** An inline icon for each alert mode. Plain icons, not emoji, so they look the same on every phone. */
 function modeIcon(mode) {
-  return { adhan: "🔊", bell: "🔔", off: "🔕" }[mode] || "🔔";
+  return { adhan: ICON_SPEAKER, bell: ICON_BELL, off: ICON_BELL_OFF }[mode] || ICON_BELL;
 }
 
 function modeLabel(name, mode) {
@@ -361,7 +366,7 @@ function wireTracker(root) {
       const mode = nextMode(name, readModes()[name]);
       writeMode(name, mode);
       const shown = prayerDisplay(PRAYERS.find((p) => p.name === name));
-      button.textContent = modeIcon(mode);
+      button.innerHTML = modeIcon(mode);
       button.setAttribute("aria-label", modeLabel(shown.name, mode));
       syncNativeSchedule();
     });
@@ -372,7 +377,7 @@ function wireTracker(root) {
       const name = button.dataset.sunMode;
       const mode = nextMode(name, readModes()[name]);
       writeMode(name, mode);
-      button.textContent = modeIcon(mode);
+      button.innerHTML = modeIcon(mode);
       button.classList.toggle("is-on", mode !== "off");
       button.setAttribute("aria-label", modeLabel(name, mode));
       syncNativeSchedule();
@@ -559,22 +564,31 @@ function startCountdown(root, next) {
   }, 15000);
 }
 
+// The last prayer snapshot this app session loaded. Home shows it at once when reopened.
+let lastSnapshot = null;
+
 async function loadDashboard(root) {
   if (!hasSavedLocation()) {
     renderNoLocation(root);
     return;
   }
-  root.setAttribute("aria-busy", "true");
+  // Already loaded in this session: show it at once and refresh quietly, with no loading text.
+  if (lastSnapshot) {
+    renderDashboard(root, lastSnapshot);
+  } else {
+    root.setAttribute("aria-busy", "true");
+  }
   try {
     const snapshot = await withTimeout(getPrayerSnapshot(), DASHBOARD_LOAD_LIMIT_MS);
     if (!snapshot) {
       renderNoLocation(root);
       return;
     }
+    lastSnapshot = snapshot;
     renderDashboard(root, snapshot);
   } catch (error) {
     console.error("[TAZAWWUD] Failed to load Home prayer snapshot:", error);
-    renderUnavailable(root);
+    if (!lastSnapshot) renderUnavailable(root);
   }
 }
 

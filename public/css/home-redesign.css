@@ -1,0 +1,11 @@
+/* Home: consistent controls. Loaded after tracker.css and style.css. */
+.tz-icon { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
+.home-bell { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid rgba(167, 232, 198, 0.35); background: rgba(0, 163, 90, 0.12); color: #a7e8c6; cursor: pointer; padding: 0; }
+.home-bell:not(.is-on) { background: transparent; color: #b9d9d0; border-color: rgba(255, 255, 255, 0.14); }
+.home-bell:focus-visible { outline: 2px solid #f6d58b; outline-offset: 2px; }
+.home-track-spacer { display: inline-block; width: 26px; flex: 0 0 auto; }
+.home-track-all__button { min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid #0a7048; background: #0a7048; color: #ffffff; font: inherit; font-weight: 600; cursor: pointer; }
+.home-track-all__button:disabled { background: rgba(255, 255, 255, 0.12); border-color: transparent; color: rgba(255, 255, 255, 0.6); cursor: default; }
+.home-track-all__count { color: #b9d9d0; font-size: 14px; margin: 0; }
+.home-track-streak { color: #f6d58b; font-weight: 600; font-size: 14px; margin: 6px 0 0; }
