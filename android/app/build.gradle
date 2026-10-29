@@ -16,10 +16,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Release signing. The key location and passwords are read from ~/.gradle/gradle.properties,
+    // which is outside the project, so no secret is stored in Git.
+    signingConfigs {
+        release {
+            if (findProperty('TAZAWWUD_KEYSTORE_FILE')) {
+                storeFile file(findProperty('TAZAWWUD_KEYSTORE_FILE'))
+                storePassword findProperty('TAZAWWUD_KEYSTORE_PASSWORD')
+                keyAlias findProperty('TAZAWWUD_KEY_ALIAS')
+                keyPassword findProperty('TAZAWWUD_KEY_PASSWORD')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Signed only when the key is configured; otherwise the release APK stays unsigned.
+            if (findProperty('TAZAWWUD_KEYSTORE_FILE')) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
