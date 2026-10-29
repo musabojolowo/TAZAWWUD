@@ -564,20 +564,51 @@ function startCountdown(root, next) {
   }, 15000);
 }
 
-// The last prayer snapshot this app session loaded. Home shows it at once when reopened.
+// The last prayer snapshot, kept on the device so Home can show it the moment the app opens.
+const SNAPSHOT_KEY = "tazawwud:home-snapshot";
+
+// Shown before any prayer times are known: the layout with dashes, and no loading text.
+const EMPTY_SNAPSHOT = {
+  timings: { Fajr: "--:--", Sunrise: "--:--", Dhuhr: "--:--", Asr: "--:--", Maghrib: "--:--", Isha: "--:--" },
+  locationLabel: "",
+  state: { current: null, next: null },
+  next: null,
+};
+
 let lastSnapshot = null;
+
+function readSavedSnapshot() {
+  try {
+    const saved = JSON.parse(globalThis.localStorage?.getItem(SNAPSHOT_KEY) || "null");
+    if (!saved?.next?.target) return null;
+    const target = new Date(saved.next.target);
+    if (target.getTime() <= Date.now()) return null; // that prayer has passed: wait for fresh times
+    return { ...saved, next: { ...saved.next, target } };
+  } catch {
+    return null;
+  }
+}
+
+function saveSnapshot(snapshot) {
+  try {
+    const plain = {
+      ...snapshot,
+      next: snapshot.next ? { ...snapshot.next, target: snapshot.next.target.toISOString() } : null,
+    };
+    globalThis.localStorage?.setItem(SNAPSHOT_KEY, JSON.stringify(plain));
+  } catch {
+    // storage full or blocked: Home still works, it just loads from the network
+  }
+}
 
 async function loadDashboard(root) {
   if (!hasSavedLocation()) {
     renderNoLocation(root);
     return;
   }
-  // Already loaded in this session: show it at once and refresh quietly, with no loading text.
-  if (lastSnapshot) {
-    renderDashboard(root, lastSnapshot);
-  } else {
-    root.setAttribute("aria-busy", "true");
-  }
+  // Show what we know at once: this session's times, else the saved times, else the empty layout.
+  const shown = lastSnapshot || readSavedSnapshot() || EMPTY_SNAPSHOT;
+  renderDashboard(root, shown);
   try {
     const snapshot = await withTimeout(getPrayerSnapshot(), DASHBOARD_LOAD_LIMIT_MS);
     if (!snapshot) {
@@ -585,10 +616,11 @@ async function loadDashboard(root) {
       return;
     }
     lastSnapshot = snapshot;
+    saveSnapshot(snapshot);
     renderDashboard(root, snapshot);
   } catch (error) {
     console.error("[TAZAWWUD] Failed to load Home prayer snapshot:", error);
-    if (!lastSnapshot) renderUnavailable(root);
+    if (shown === EMPTY_SNAPSHOT) renderUnavailable(root);
   }
 }
 

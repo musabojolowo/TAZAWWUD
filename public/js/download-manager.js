@@ -68,6 +68,12 @@ function jobId(kind, id) {
 }
 
 export function createDownloadManager(deps) {
+  // Pause, resume and cancel: one control per running job, checked between items.
+  const controls = new Map();
+  function controlFor(key) {
+    if (!controls.has(key)) controls.set(key, { paused: false, cancelled: false, wake: null });
+    return controls.get(key);
+  }
   const { storage, quran, hadith, audio } = deps;
   const isOnline = deps.isOnline || (() => true);
   const notify = deps.onChange || (() => {});
@@ -122,11 +128,18 @@ export function createDownloadManager(deps) {
     }
 
     running.add(key);
+    const control = controlFor(key);
     let done = items.filter((item) => item.done()).length;
     setJob(key, { status: "running", done, total: items.length, message: "", errorKind: null });
 
     try {
       for (const item of items) {
+        if (control.cancelled) break;
+        // Pause waits here, between items, until resumed or cancelled.
+        while (control.paused && !control.cancelled) {
+          await new Promise((resolve) => { control.wake = resolve; });
+        }
+        if (control.cancelled) break;
         if (item.done()) continue;
 
         const result = await item.run();
@@ -149,13 +162,15 @@ export function createDownloadManager(deps) {
         done += 1;
         setJob(key, { done });
       }
-      setJob(key, { status: "complete", message: "", errorKind: null });
+      if (control.cancelled) setJob(key, { status: "cancelled", message: "", errorKind: null });
+      else setJob(key, { status: "complete", message: "", errorKind: null });
     } catch (error) {
       const errorKind = classify(error);
       console.warn(`[TAZAWWUD] Download ${key} stopped:`, error?.message);
       setJob(key, { status: "error", errorKind, message: error?.userMessage || FRIENDLY[errorKind] });
     } finally {
       running.delete(key);
+      controls.delete(key);
     }
     return jobs.get(key);
   }
@@ -219,9 +234,10 @@ export function createDownloadManager(deps) {
 
   // --------------------------------------------------------------- Audio ---
 
-  async function audioItems(reciterId) {
+  async function audioItems(reciterId, only) {
     const items = [];
     for (let n = 1; n <= SURAH_COUNT; n += 1) {
+      if (only && !only.includes(n)) continue;
       const url = await audio.urlFor(reciterId, n);
       items.push({
         id: `audio:${n}`,
@@ -240,8 +256,8 @@ export function createDownloadManager(deps) {
     return items;
   }
 
-  function startAudio(reciterId) {
-    return load().then(async () => runJob("audio", reciterId, await audioItems(reciterId)));
+  function startAudio(reciterId, only) {
+    return load().then(async () => runJob("audio", reciterId, await audioItems(reciterId, only)));
   }
 
   // ------------------------------------------------------------- delete ---
@@ -328,12 +344,47 @@ export function createDownloadManager(deps) {
     return Boolean(manifest?.hadith[slug]);
   }
 
+
+  function pauseJob(kind, id) {
+    const key = jobId(kind, id);
+    const control = controls.get(key);
+    if (!control || control.cancelled) return;
+    control.paused = true;
+    setJob(key, { status: "paused" });
+  }
+
+  function resumeJob(kind, id) {
+    const key = jobId(kind, id);
+    const control = controls.get(key);
+    if (!control || control.cancelled) return;
+    control.paused = false;
+    const wake = control.wake;
+    control.wake = null;
+    if (wake) wake();
+    setJob(key, { status: "running" });
+  }
+
+  function cancelJob(kind, id) {
+    const key = jobId(kind, id);
+    const control = controls.get(key);
+    if (!control) return;
+    control.cancelled = true;
+    control.paused = false;
+    const wake = control.wake;
+    control.wake = null;
+    if (wake) wake();
+    setJob(key, { status: "cancelled" });
+  }
+
   return {
     load,
     summary,
     startQuran,
     startHadith,
     startAudio,
+    pauseJob,
+    resumeJob,
+    cancelJob,
     deleteQuran,
     deleteHadith,
     deleteAudio,

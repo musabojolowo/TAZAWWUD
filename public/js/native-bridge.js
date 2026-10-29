@@ -199,3 +199,21 @@ export async function resolvePlaceNative(latitude, longitude) {
     return null;
   }
 }
+
+/** Whether exact alarms and unrestricted battery are on. Null outside the app or if unknown. */
+export async function getAlarmStatus() {
+  if (!inNativeApp()) return null;
+  try {
+    return await plugin("PrayerBridge").getAlarmStatus();
+  } catch {
+    return null;
+  }
+}
+
+export function openExactAlarmSettings() {
+  if (inNativeApp()) plugin("PrayerBridge").openExactAlarmSettings().catch(() => {});
+}
+
+export function openBatterySettings() {
+  if (inNativeApp()) plugin("PrayerBridge").openBatterySettings().catch(() => {});
+}

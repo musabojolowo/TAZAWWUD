@@ -35,4 +35,50 @@ public class PrayerBridgePlugin extends Plugin {
             call.resolve(result);
         }).start();
     }
+
+    /** Whether exact alarms and unrestricted battery are on, so Adhan rings on time. */
+    @PluginMethod
+    public void getAlarmStatus(PluginCall call) {
+        android.content.Context context = getContext();
+        boolean exact = true;
+        if (android.os.Build.VERSION.SDK_INT >= 31) {
+            android.app.AlarmManager alarms = (android.app.AlarmManager) context.getSystemService(android.content.Context.ALARM_SERVICE);
+            exact = alarms != null && alarms.canScheduleExactAlarms();
+        }
+        boolean battery = true;
+        if (android.os.Build.VERSION.SDK_INT >= 23) {
+            android.os.PowerManager power = (android.os.PowerManager) context.getSystemService(android.content.Context.POWER_SERVICE);
+            battery = power != null && power.isIgnoringBatteryOptimizations(context.getPackageName());
+        }
+        JSObject result = new JSObject();
+        result.put("exactAlarms", exact);
+        result.put("batteryUnrestricted", battery);
+        call.resolve(result);
+    }
+
+    /** Opens the phone's "Alarms & reminders" page for this app. */
+    @PluginMethod
+    public void openExactAlarmSettings(PluginCall call) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                android.content.Intent intent = new android.content.Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                intent.setData(android.net.Uri.parse("package:" + getContext().getPackageName()));
+                getActivity().startActivity(intent);
+            }
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Could not open the alarm settings.");
+        }
+    }
+
+    /** Opens the phone's battery settings, where the app can be set to Unrestricted. */
+    @PluginMethod
+    public void openBatterySettings(PluginCall call) {
+        try {
+            getActivity().startActivity(new android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Could not open the battery settings.");
+        }
+    }
 }
