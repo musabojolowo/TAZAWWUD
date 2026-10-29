@@ -221,3 +221,15 @@
     flex: 1 1 auto;
   }
 }
+
+/* Warning card: exact alarms or battery use may delay Adhan. */
+.nt-alarm {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #c9a227;
+  background: rgba(201, 162, 39, 0.12);
+  color: var(--color-text, #e8f3ef);
+}
+.nt-alarm__title { margin: 0 0 4px; font-weight: 700; }
+.nt-alarm__text { margin: 0 0 4px; font-size: 14px; line-height: 1.45; }
+.nt-alarm__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }

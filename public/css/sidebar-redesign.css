@@ -1,4 +1,5 @@
-/* Account & Settings panel and About page: compact, emerald, gold and dark. Narrow-screen safe. */
+/* Account & Settings panel, downloads and About page: built on the app's own colour variables,
+   so light and dark mode follow the app's theme switch. */
 
 /* ---- Panel frame, header and scrolling ---- */
 .settings-sidebar {
@@ -6,8 +7,8 @@
   flex-direction: column;
   width: min(100vw, 380px);
   max-width: 100%;
-  background: #0b1a15;
-  color: #e8f3ef;
+  background: var(--color-bg);
+  color: var(--color-text);
   box-sizing: border-box;
 }
 .settings-sidebar__header {
@@ -19,26 +20,25 @@
   justify-content: space-between;
   gap: 8px;
   padding: 14px 14px 12px;
-  background: #0b1a15;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
 }
 .settings-sidebar__header h2 {
   margin: 0;
-  color: #00a35a;
+  color: var(--color-primary);
   font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.02em;
 }
 .sidebar-close-btn {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.04);
-  color: #e8f3ef;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
 }
-.sidebar-close-btn:focus-visible { outline: 2px solid #f6d58b; outline-offset: 2px; }
+.sidebar-close-btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 .settings-sidebar__body {
   display: flex;
   flex-direction: column;
@@ -55,15 +55,15 @@
 .settings-section {
   margin: 0;
   padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   min-width: 0;
   box-sizing: border-box;
 }
 .settings-section__heading {
   margin: 0 0 8px;
-  color: #f6d58b;
+  color: var(--color-accent);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -82,8 +82,8 @@ details.settings-section > summary.settings-section__heading::after {
   content: "";
   width: 8px;
   height: 8px;
-  border-right: 2px solid #f6d58b;
-  border-bottom: 2px solid #f6d58b;
+  border-right: 2px solid var(--color-accent);
+  border-bottom: 2px solid var(--color-accent);
   transform: rotate(45deg);
   transition: transform 0.15s ease;
   margin-right: 4px;
@@ -91,19 +91,19 @@ details.settings-section > summary.settings-section__heading::after {
 details[open].settings-section > summary.settings-section__heading::after { transform: rotate(225deg); }
 .settings-subheading {
   margin: 8px 0 4px;
-  color: #b9d9d0;
+  color: var(--color-text-muted);
   font-size: 13px;
   font-weight: 600;
 }
 .settings-note {
   margin: 0 0 8px;
-  color: #b9d9d0;
+  color: var(--color-text-muted);
   font-size: 13px;
   line-height: 1.45;
 }
 .settings-account-status {
   margin: 0 0 8px;
-  color: #e8f3ef;
+  color: var(--color-text);
   font-size: 14px;
 }
 
@@ -116,10 +116,10 @@ details[open].settings-section > summary.settings-section__heading::after { tran
   min-height: 46px;
   padding: 8px 10px;
   margin: 4px 0;
-  border-radius: 12px;
+  border-radius: var(--radius-md, 12px);
   border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.03);
-  color: #e8f3ef;
+  background: transparent;
+  color: var(--color-text);
   font: inherit;
   font-size: 15px;
   text-align: left;
@@ -134,29 +134,28 @@ details[open].settings-section > summary.settings-section__heading::after { tran
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  background: rgba(0, 163, 90, 0.16);
-  color: #a7e8c6;
+  background: var(--color-bg);
+  color: var(--color-primary);
   font-size: 20px;
 }
 .settings-row-btn:hover,
 .settings-row-btn:focus-visible {
-  border-color: rgba(0, 163, 90, 0.6);
-  background: rgba(0, 163, 90, 0.12);
+  border-color: var(--color-primary);
   outline: none;
 }
-.settings-row-btn--danger { color: #ffb4a9; }
-.settings-row-btn--danger .icon { background: rgba(179, 38, 30, 0.2); color: #ffb4a9; }
-.settings-row-btn--about { justify-content: center; font-weight: 600; color: #a7e8c6; }
+.settings-row-btn--danger { color: #b3261e; }
+.settings-row-btn--danger .icon { color: #b3261e; }
+.settings-row-btn--about { justify-content: center; font-weight: 600; color: var(--color-primary); }
 
-/* ---- Account buttons ---- */
+/* ---- Buttons used in the panel ---- */
 .settings-section .salah-button {
   display: block;
   width: 100%;
   min-height: 42px;
   margin: 6px 0 0;
   border-radius: 999px;
-  border: 1px solid #0a7048;
-  background: #0a7048;
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
   color: #ffffff;
   font: inherit;
   font-weight: 600;
@@ -165,10 +164,30 @@ details[open].settings-section > summary.settings-section__heading::after { tran
 }
 .settings-section .salah-button--secondary {
   background: transparent;
-  color: #a7e8c6;
+  color: var(--color-primary);
 }
 .settings-section .salah-button:focus-visible,
-.settings-row-btn:focus-visible { outline: 2px solid #f6d58b; outline-offset: 2px; }
+.settings-row-btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+/* ---- Inputs ---- */
+.reminder-add-form input[type="text"],
+.reminder-add-form input[type="time"],
+.dl-group select,
+.salah-select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm, 10px);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  box-sizing: border-box;
+}
+.reminder-add-form input::placeholder { color: var(--color-text-muted); }
+.reminder-add-form input:focus-visible,
+.dl-group select:focus-visible,
+.salah-select:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 
 /* ---- Daily reminders ---- */
 .reminders-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
@@ -178,47 +197,26 @@ details[open].settings-section > summary.settings-section__heading::after { tran
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.2);
-  color: #e8f3ef;
+  border-radius: var(--radius-sm, 10px);
+  background: var(--color-bg);
+  color: var(--color-text);
   font-size: 14px;
 }
 .reminder-add-form { display: grid; gap: 6px; margin-top: 8px; }
-.reminder-add-form input[type="text"],
-.reminder-add-form input[type="time"],
-.dl-group select,
-.salah-select {
-  width: 100%;
-  min-height: 40px;
-  padding: 0 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(0, 0, 0, 0.25);
-  color: #e8f3ef;
-  font: inherit;
-  box-sizing: border-box;
-}
-.reminder-add-form input::placeholder { color: #8fb3a6; }
-.reminder-add-form input:focus-visible,
-.dl-group select:focus-visible,
-.salah-select:focus-visible { outline: 2px solid #f6d58b; outline-offset: 2px; }
 .reminder-add-form .salah-button { margin-top: 2px; }
 
-/* ---- Privacy ---- */
-.settings-section--privacy .settings-row-btn { margin-top: 6px; }
-
-/* ---- Offline downloads: scannable rows, clear status, clear actions ---- */
+/* ---- Offline downloads ---- */
 .settings-downloads-section { padding: 12px; }
-.dl-storage { margin: 0 0 8px; color: #b9d9d0; font-size: 13px; }
+.dl-storage { margin: 0 0 8px; color: var(--color-text-muted); font-size: 13px; }
 .dl-group {
   margin: 0 0 10px;
   padding: 10px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md, 12px);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
 }
-.dl-group__title { margin: 0 0 6px; color: #e8f3ef; font-size: 14px; font-weight: 700; }
-.dl-label { display: block; margin: 6px 0 4px; color: #b9d9d0; font-size: 13px; }
+.dl-group__title { margin: 0 0 6px; color: var(--color-text); font-size: 14px; font-weight: 700; }
+.dl-label { display: block; margin: 6px 0 4px; color: var(--color-text-muted); font-size: 13px; }
 .dl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .dl-row {
   display: flex;
@@ -227,12 +225,12 @@ details[open].settings-section > summary.settings-section__heading::after { tran
   justify-content: space-between;
   gap: 8px;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--color-border);
 }
 .dl-list .dl-row:last-child { border-bottom: 0; }
 .dl-row__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 150px; }
-.dl-row__name { color: #e8f3ef; font-size: 14px; overflow-wrap: anywhere; }
-.dl-row__actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.dl-row__name { color: var(--color-text); font-size: 14px; overflow-wrap: anywhere; }
+.dl-row__actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; margin: 6px 0; }
 .dl-status {
   display: inline-block;
   align-self: flex-start;
@@ -242,17 +240,17 @@ details[open].settings-section > summary.settings-section__heading::after { tran
   font-weight: 700;
   line-height: 1.5;
 }
-.dl-status.is-downloaded { background: rgba(0, 163, 90, 0.2); color: #a7e8c6; }
-.dl-status.is-online { background: rgba(246, 213, 139, 0.14); color: #f6d58b; }
-.dl-note { margin: 4px 0 0; color: #b9d9d0; font-size: 12px; line-height: 1.4; }
-.dl-error { margin: 4px 0 0; color: #ffb4a9; font-size: 13px; }
+.dl-status.is-downloaded { background: var(--color-primary); color: #ffffff; }
+.dl-status.is-online { background: var(--color-surface); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+.dl-note { margin: 4px 0 0; color: var(--color-text-muted); font-size: 12px; line-height: 1.4; }
+.dl-error { margin: 4px 0 0; color: #b3261e; font-size: 13px; }
 .dl-btn {
   min-height: 34px;
   padding: 0 12px;
   border-radius: 999px;
-  border: 1px solid #00a35a;
+  border: 1px solid var(--color-primary);
   background: transparent;
-  color: #a7e8c6;
+  color: var(--color-primary);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -260,28 +258,57 @@ details[open].settings-section > summary.settings-section__heading::after { tran
   white-space: nowrap;
 }
 .dl-btn:disabled { opacity: 0.6; cursor: default; }
-.dl-btn--danger { border-color: rgba(255, 180, 169, 0.7); color: #ffb4a9; }
-.dl-btn:focus-visible { outline: 2px solid #f6d58b; outline-offset: 2px; }
+.dl-btn--danger { border-color: #b3261e; color: #b3261e; }
+.dl-btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+/* Surah picker for Qur'an audio */
+.dl-picker { margin: 8px 0; }
+.dl-picker > summary { cursor: pointer; color: var(--color-primary); font-weight: 600; }
+.dl-surah-list {
+  list-style: none;
+  margin: 6px 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 10px);
+  background: var(--color-surface);
+}
+.dl-surah { border-bottom: 1px solid var(--color-border); }
+.dl-surah:last-child { border-bottom: 0; }
+.dl-surah__label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 10px;
+  color: var(--color-text);
+  font-size: 14px;
+  cursor: pointer;
+}
+.dl-surah__label input { width: 18px; height: 18px; margin: 0; accent-color: var(--color-primary); flex: 0 0 auto; }
+.dl-surah__num { min-width: 28px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 
 /* ---- About page ---- */
-.about-root { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 24px; color: #e8f3ef; }
+.about-root { display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 24px; color: var(--color-text); }
 .ab-hero { text-align: center; padding: 8px 0 4px; }
-.ab-hero__arabic { margin: 0; color: #f6d58b; font-size: 22px; }
-.ab-title { margin: 2px 0 0; color: #00a35a; font-size: 24px; font-weight: 700; letter-spacing: 0.04em; }
-.ab-tagline { margin: 4px 0 0; color: #b9d9d0; font-size: 14px; }
-.ab-card { padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.04); }
-.ab-heading { margin: 0 0 8px; color: #f6d58b; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
-.ab-text { margin: 0; color: #e8f3ef; font-size: 14px; line-height: 1.5; }
+.ab-hero__arabic { margin: 0; color: var(--color-accent); font-size: 22px; }
+.ab-title { margin: 2px 0 0; color: var(--color-primary); font-size: 24px; font-weight: 700; letter-spacing: 0.04em; }
+.ab-tagline { margin: 4px 0 0; color: var(--color-text-muted); font-size: 14px; }
+.ab-card { padding: 12px 14px; border-radius: var(--radius-lg, 14px); border: 1px solid var(--color-border); background: var(--color-surface); }
+.ab-heading { margin: 0 0 8px; color: var(--color-accent); font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.ab-text { margin: 0; color: var(--color-text); font-size: 14px; line-height: 1.5; }
 .ab-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
 .ab-list li { display: grid; gap: 2px; }
-.ab-list strong { color: #ffffff; font-size: 14px; }
-.ab-list span { color: #b9d9d0; font-size: 13px; line-height: 1.45; }
+.ab-list strong { color: var(--color-text); font-size: 14px; }
+.ab-list span { color: var(--color-text-muted); font-size: 13px; line-height: 1.45; }
 .ab-sources { margin: 0; display: grid; gap: 10px; }
-.ab-sources dt { color: #ffffff; font-size: 14px; font-weight: 600; }
-.ab-sources dd { margin: 2px 0 0; color: #b9d9d0; font-size: 13px; line-height: 1.45; }
+.ab-sources dt { color: var(--color-text); font-size: 14px; font-weight: 600; }
+.ab-sources dd { margin: 2px 0 0; color: var(--color-text-muted); font-size: 13px; line-height: 1.45; }
 .ab-links { display: flex; flex-wrap: wrap; gap: 8px; }
-.ab-links a { padding: 8px 14px; border-radius: 999px; border: 1px solid #00a35a; color: #a7e8c6; text-decoration: none; font-size: 14px; font-weight: 600; }
-.ab-links a:focus-visible { outline: 2px solid #f6d58b; outline-offset: 2px; }
+.ab-links a { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--color-primary); color: var(--color-primary); text-decoration: none; font-size: 14px; font-weight: 600; }
+.ab-links a:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 
 /* ---- Narrow phones ---- */
 @media (max-width: 380px) {

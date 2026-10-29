@@ -7,6 +7,7 @@
 
 import { getNotificationManager } from "./notification-hub.js";
 import { loadPrefs, updatePrefs } from "./notification-prefs.js";
+import { getAlarmStatus, openExactAlarmSettings, openBatterySettings } from "./native-bridge.js";
 
 let initializedRoot = null;
 
@@ -25,6 +26,7 @@ export function initNotifications(root) {
   initializedRoot = root;
   ensureStylesheet();
   root.innerHTML = renderMarkup();
+  showAlarmWarning(root);
 
   const notificationManager = getNotificationManager();
   const notificationToggle = root.querySelector("[data-salah-notifications]");
@@ -62,6 +64,31 @@ export function initNotifications(root) {
   root.querySelector("[data-salah-muadhin-test]")?.addEventListener("click", () => {
     notificationManager.testPlayback();
   });
+}
+
+/**
+ * On the phone, warns when exact alarms or battery use would make Adhan late, and opens the right setting.
+ * Does nothing in a browser, or when everything is already allowed.
+ */
+async function showAlarmWarning(root) {
+  const status = await getAlarmStatus();
+  if (!status || (status.exactAlarms && status.batteryUnrestricted)) return;
+  const card = document.createElement("section");
+  card.className = "nt-alarm";
+  card.setAttribute("role", "alert");
+  const reasons = [];
+  if (!status.exactAlarms) reasons.push("Allow “Alarms & reminders” for TAZAWWUD, so prayer alerts ring on time.");
+  if (!status.batteryUnrestricted) reasons.push("Set the battery for TAZAWWUD to Unrestricted, so the phone doesn’t delay alerts.");
+  card.innerHTML = `
+    <p class="nt-alarm__title">Adhan and reminders may arrive late</p>
+    ${reasons.map((text) => `<p class="nt-alarm__text">${text}</p>`).join("")}
+    <div class="nt-alarm__actions">
+      ${!status.exactAlarms ? '<button type="button" class="nt-button" data-alarm-exact>Allow alarms</button>' : ""}
+      ${!status.batteryUnrestricted ? '<button type="button" class="nt-button" data-alarm-battery>Battery settings</button>' : ""}
+    </div>`;
+  card.querySelector("[data-alarm-exact]")?.addEventListener("click", () => openExactAlarmSettings());
+  card.querySelector("[data-alarm-battery]")?.addEventListener("click", () => openBatterySettings());
+  root.querySelector(".nt-page")?.prepend(card);
 }
 
 function renderMarkup() {

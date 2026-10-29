@@ -180,14 +180,45 @@ function jobLine(job) {
     return `<progress max="${job.total}" value="${job.done}" aria-label="Download progress"></progress>
       <p class="dl-note">Downloading… ${job.done} of ${job.total}. You can leave this open; saved items are kept.</p>`;
   }
+  if (job.status === "paused") {
+    return `<progress max="${job.total}" value="${job.done}" aria-label="Download progress"></progress>
+      <p class="dl-note">Paused at ${job.done} of ${job.total}. Resume to continue, or cancel to stop.</p>`;
+  }
+  if (job.status === "cancelled") {
+    return `<p class="dl-note">Cancelled. Items already saved are kept.</p>`;
+  }
   if (job.status === "error") {
     return `<p class="dl-error" role="alert">${escapeHtml(job.message)}</p>`;
   }
   return "";
 }
 
-function actionButtons(kind, id, { complete, partial, running }) {
-  if (running) return `<button type="button" class="dl-btn" disabled>Downloading…</button>`;
+/** The 114 surah checkboxes for the audio picker. Names are filled in afterwards. */
+function surahCheckboxes() {
+  return Array.from({ length: 114 }, (_, i) => i + 1).map((n) => `<li class="dl-surah"><label class="dl-surah__label"><input type="checkbox" data-dl-surah="${n}" /><span class="dl-surah__num">${n}</span><span data-surah-name="${n}">Surah ${n}</span></label></li>`).join("");
+}
+
+async function fillSurahNames() {
+  if (!document.querySelector("[data-surah-name]")) return;
+  try {
+    const list = await (await lazyQuran()).fetchSurahList();
+    document.querySelectorAll("[data-surah-name]").forEach((node) => {
+      const surah = list.find((item) => item.number === Number(node.dataset.surahName));
+      if (surah) node.textContent = surah.englishName;
+    });
+  } catch (error) {
+    // The names stay as numbers if the list is not available.
+  }
+}
+
+function actionButtons(kind, id, { complete, partial }) {
+  const key = `${kind}:${id}`;
+  const job = manager ? manager.summary().jobs[key] : null;
+  if (job?.status === "running" || job?.status === "paused") {
+    const paused = job.status === "paused";
+    return `<button type="button" class="dl-btn" data-dl-action="${paused ? "resume" : "pause"}" data-dl-id="${escapeHtml(key)}">${paused ? "Resume" : "Pause"}</button>
+      <button type="button" class="dl-btn dl-btn--danger" data-dl-action="cancel" data-dl-id="${escapeHtml(key)}">Cancel</button>`;
+  }
   if (complete) return `<button type="button" class="dl-btn dl-btn--danger" data-dl-action="del-${kind}" data-dl-id="${escapeHtml(id)}">Delete</button>`;
   const label = partial ? "Resume" : "Download";
   return `<button type="button" class="dl-btn" data-dl-action="dl-${kind}" data-dl-id="${escapeHtml(id)}">${label}</button>
@@ -265,11 +296,23 @@ async function renderPanel() {
         ${aComplete ? "Downloaded — all 114 surahs" : `${aStatus.surahs}/114 surahs downloaded`}
       </p>
       ${jobLine(aJob)}
-      <div class="dl-row__actions">${actionButtons("audio", reciterId, { complete: aComplete, partial: aStatus.surahs > 0 && !aComplete, running: aRunning })}</div>
-      <p class="dl-note">Audio is large. Download on Wi-Fi with enough free space.</p>
+      <details class="dl-picker">
+        <summary class="dl-label">Choose surahs to download</summary>
+        <div class="dl-row__actions">
+          <button type="button" class="dl-btn" data-dl-pick="all">Select all</button>
+          <button type="button" class="dl-btn" data-dl-pick="none">Clear</button>
+        </div>
+        <ul class="dl-surah-list">${surahCheckboxes()}</ul>
+        <div class="dl-row__actions">
+          <button type="button" class="dl-btn" data-dl-action="dl-audio-selected" data-dl-id="${escapeHtml(reciterId)}">Download selected</button>
+        </div>
+      </details>
+      <div class="dl-row__actions">${actionButtons("audio", reciterId, { complete: aComplete, partial: aStatus.surahs > 0 && !aComplete })}</div>
+      <p class="dl-note">Audio is large. Choose surahs above, or download all 114 on Wi-Fi with enough free space.</p>
     </div>
   `;
   refreshStorageLine();
+  fillSurahNames();
 }
 
 async function refreshStorageLine() {
@@ -282,6 +325,11 @@ async function refreshStorageLine() {
 }
 
 function onPanelClick(event) {
+  const pick = event.target.closest("[data-dl-pick]");
+  if (pick) {
+    document.querySelectorAll("[data-dl-surah]").forEach((box) => { box.checked = pick.dataset.dlPick === "all"; });
+    return;
+  }
   const button = event.target.closest("[data-dl-action]");
   if (!button || button.disabled) return;
   const { dlAction: action, dlId: id } = button.dataset;
@@ -297,6 +345,17 @@ function onPanelClick(event) {
     m.deleteHadith(id);
   }
   if (action === "dl-audio") m.startAudio(id);
+  if (action === "dl-audio-selected") {
+    const chosen = [...document.querySelectorAll("[data-dl-surah]:checked")].map((box) => Number(box.dataset.dlSurah));
+    if (chosen.length) m.startAudio(id, chosen);
+  }
+  if (action === "pause" || action === "resume" || action === "cancel") {
+    const [kind, ...rest] = id.split(":");
+    const realId = rest.join(":");
+    if (action === "pause") m.pauseJob(kind, realId);
+    if (action === "resume") m.resumeJob(kind, realId);
+    if (action === "cancel") m.cancelJob(kind, realId);
+  }
   if (action === "del-audio" && window.confirm("Delete all downloaded audio for this reciter?")) {
     m.deleteAudio(id);
   }
