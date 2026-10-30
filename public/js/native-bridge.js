@@ -217,3 +217,41 @@ export function openExactAlarmSettings() {
 export function openBatterySettings() {
   if (inNativeApp()) plugin("PrayerBridge").openBatterySettings().catch(() => {});
 }
+
+/** Whether location services are on, and whether the app has location permission. Null outside the app. */
+export async function getLocationStatus() {
+  if (!inNativeApp()) return null;
+  try {
+    return await plugin("PrayerBridge").getLocationStatus();
+  } catch {
+    return null;
+  }
+}
+
+export function openLocationSettings() {
+  if (inNativeApp()) plugin("PrayerBridge").openLocationSettings().catch(() => {});
+}
+
+export function openAppSettings() {
+  if (inNativeApp()) plugin("PrayerBridge").openAppSettings().catch(() => {});
+}
+
+/** Stores the admin reminders on the phone and rebuilds the alarms. Does nothing in a browser. */
+export async function saveCustomReminders(list) {
+  if (!inNativeApp()) return;
+  try {
+    await plugin("PrayerBridge").saveCustomReminders({ json: JSON.stringify(list) });
+  } catch {
+    // The alarms stay as they were; the next app opening tries again.
+  }
+}
+
+/** Shows a one-off admin reminder now. */
+export async function showNowReminder(id, title, body) {
+  if (!inNativeApp()) return;
+  try {
+    await plugin("PrayerBridge").showNowReminder({ id, title, body });
+  } catch {
+    // Not shown; it is tried again the next time the app opens.
+  }
+}

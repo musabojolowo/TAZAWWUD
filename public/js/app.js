@@ -469,11 +469,23 @@ function openSurahInReader(surahNumber) {
  * static nav-link element to click.
  */
 export function navigateTo(viewName) {
-  showView(viewName);
-  history.replaceState(null, "", `#${viewName}`);
+  // A real change of page adds a history entry, so the phone's back button returns to the page before.
+  if (appState.currentView !== viewName) {
+    showView(viewName);
+    history.pushState({ view: viewName }, "", `#${viewName}`);
+  } else {
+    history.replaceState(null, "", `#${viewName}`);
+  }
 }
 
 function initRouter() {
+  // The phone's back button (and the browser's back button): show the page that was open before.
+  window.addEventListener("popstate", () => {
+    const view = window.location.hash.replace("#", "").split("/")[0] || "home";
+    const target = VALID_VIEWS.includes(view) ? view : "home";
+    if (target !== appState.currentView) showView(target);
+  });
+
   // A notification tap can change the hash of an app that is already open. Without
   // this listener the URL would change but the screen would stay the same.
   window.addEventListener("hashchange", () => {

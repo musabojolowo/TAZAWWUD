@@ -187,10 +187,27 @@ function jobLine(job) {
   if (job.status === "cancelled") {
     return `<p class="dl-note">Cancelled. Items already saved are kept.</p>`;
   }
+  if (job.status === "complete" && job.total > 0) {
+    return `<p class="dl-note dl-note--done">Download complete. ${job.total} of ${job.total} done.</p>`;
+  }
   if (job.status === "error") {
     return `<p class="dl-error" role="alert">${escapeHtml(job.message)}</p>`;
   }
   return "";
+}
+
+/** Download All for the Hadith collections, or its pause, resume and cancel buttons while it runs. */
+function hadithAllButtons(latest, h) {
+  const job = latest.jobs["hadith:all"];
+  if (job?.status === "running" || job?.status === "paused") {
+    const paused = job.status === "paused";
+    return `<button type="button" class="dl-btn" data-dl-action="${paused ? "resume" : "pause"}" data-dl-id="hadith:all">${paused ? "Resume" : "Pause"}</button>
+      <button type="button" class="dl-btn dl-btn--danger" data-dl-action="cancel" data-dl-id="hadith:all">Cancel</button>`;
+  }
+  const everyDone = h.getHadithCollectionMeta().every((c) => Boolean(latest.hadith[c.slug]));
+  if (everyDone) return `<p class="dl-note dl-note--done">All Hadith collections are downloaded.</p>`;
+  const slugs = h.getHadithCollectionMeta().map((c) => c.slug).join(",");
+  return `<button type="button" class="dl-btn" data-dl-action="dl-hadith-all" data-dl-slugs="${escapeHtml(slugs)}">Download all collections</button>`;
 }
 
 /** The 114 surah checkboxes for the audio picker. Names are filled in afterwards. */
@@ -285,6 +302,8 @@ async function renderPanel() {
 
     <div class="dl-group">
       <h4 class="dl-group__title">Hadith collections</h4>
+      <div class="dl-row__actions">${hadithAllButtons(latest, h)}</div>
+      ${jobLine(latest.jobs["hadith:all"])}
       <ul class="dl-list">${hadithRows}</ul>
     </div>
 
@@ -341,6 +360,12 @@ function onPanelClick(event) {
     m.deleteQuran(selection.translationCode);
   }
   if (action === "dl-hadith") m.startHadith(id);
+  if (action === "dl-hadith-all") {
+    const slugs = (button.dataset.dlSlugs || "").split(",").filter(Boolean);
+    if (slugs.length && window.confirm(`Download all ${slugs.length} Hadith collections? They are large, so use Wi-Fi with enough free space.`)) {
+      m.startAllHadith(slugs);
+    }
+  }
   if (action === "del-hadith" && window.confirm("Delete this downloaded Hadith collection?")) {
     m.deleteHadith(id);
   }

@@ -94,6 +94,7 @@ async function showAlarmWarning(root) {
 function renderMarkup() {
   return `
       <div class="nt-page">
+        <h2 class="nt-group">Notification Settings</h2>
         <section class="nt-card nt-master">
           <label class="nt-switch" for="salah-notifications-enabled">
             <input id="salah-notifications-enabled" type="checkbox" data-salah-notifications />
@@ -133,8 +134,8 @@ function renderMarkup() {
           </div>
         </section>
 
-        <section class="nt-section" aria-labelledby="nt-daily-heading">
-          <h3 class="nt-section__title" id="nt-daily-heading">Daily reminders</h3>
+        <section class="nt-section" aria-labelledby="nt-quran-heading">
+          <h3 class="nt-section__title" id="nt-quran-heading">Qur’an reminder</h3>
           <div class="nt-card">
             <div class="nt-row">
               <label class="nt-row__label nt-check"><input type="checkbox" data-alert-quran-enabled /><span>Qur’an reminder</span></label>
@@ -142,21 +143,6 @@ function renderMarkup() {
                 <input class="nt-input" type="time" data-alert-quran-time aria-label="Qur’an reminder time" />
               </div>
             </div>
-            <div class="nt-row">
-              <label class="nt-row__label nt-check"><input type="checkbox" data-alert-adhkar-morning /><span>Morning Adhkar</span><small>After Fajr</small></label>
-            </div>
-            <div class="nt-row">
-              <label class="nt-row__label nt-check"><input type="checkbox" data-alert-adhkar-evening /><span>Evening Adhkar</span><small>After Asr</small></label>
-            </div>
-            <details class="nt-advanced">
-              <summary>Adhkar timing</summary>
-              <div class="nt-row">
-                <label class="nt-row__label" for="salah-alert-adhkar-delay">Minutes after the prayer</label>
-                <div class="nt-row__control">
-                  <input id="salah-alert-adhkar-delay" class="nt-input" type="number" min="0" max="120" step="1" inputmode="numeric" data-alert-adhkar-delay />
-                </div>
-              </div>
-            </details>
           </div>
         </section>
 
@@ -173,6 +159,28 @@ function renderMarkup() {
               </div>
             </div>
             <p class="nt-hint" data-alert-jumuah-hint></p>
+          </div>
+        </section>
+
+        <h2 class="nt-group">Adhkar Settings</h2>
+        <section class="nt-section" aria-labelledby="nt-adhkar-heading">
+          <h3 class="nt-section__title" id="nt-adhkar-heading">Morning & evening Adhkar</h3>
+          <div class="nt-card">
+            <div class="nt-row">
+              <label class="nt-row__label nt-check"><input type="checkbox" data-alert-adhkar-morning /><span>Morning Adhkar</span><small>After Fajr</small></label>
+            </div>
+            <div class="nt-row">
+              <label class="nt-row__label nt-check"><input type="checkbox" data-alert-adhkar-evening /><span>Evening Adhkar</span><small>After Asr</small></label>
+            </div>
+            <details class="nt-advanced">
+              <summary>Adhkar timing</summary>
+              <div class="nt-row">
+                <label class="nt-row__label" for="salah-alert-adhkar-delay">Minutes after the prayer</label>
+                <div class="nt-row__control">
+                  <input id="salah-alert-adhkar-delay" class="nt-input" type="number" min="0" max="120" step="1" inputmode="numeric" data-alert-adhkar-delay />
+                </div>
+              </div>
+            </details>
           </div>
         </section>
       </div>

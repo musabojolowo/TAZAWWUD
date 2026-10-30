@@ -1,14 +1,18 @@
 // ============================================================================
 // TAZAWWUD - First-launch intro and permission sequence
 // ----------------------------------------------------------------------------
-// Shown once. Then: location prompt, then notification prompt. Each one is the
+// Shown once. Order: the intro screens, then location, then notifications, then the
+// Qur'an and Hadith downloads, then Adhan settings, then alarm and reminder settings.
+// Each one is the
 // phone's own prompt inside the Android app, or the browser's prompt on the web.
 // If a permission is refused, the person is told how to turn it on later. The app
 // never sends them to settings automatically.
 // ============================================================================
 
 import { getPosition } from "./geo.js";
-import { requestNotificationPermission, inNativeApp } from "./native-bridge.js";
+import {
+  requestNotificationPermission, inNativeApp, getAlarmStatus, openExactAlarmSettings, openBatterySettings,
+} from "./native-bridge.js";
 
 const DONE_KEY = "tazawwud:onboarding-done-v1";
 
@@ -186,6 +190,50 @@ async function showHadithPrompt(overlay, onDone) {
 }
 
 /** Shows the intro once, on first launch. Safe to call on every start. */
+/** Step 3: Adhan settings. Explains the alerts; the choices are changed later under Notifications & Adhan. */
+function showAdhanPrompt(overlay, onDone) {
+  const { frame, controls } = promptFrame(
+    "Adhan and prayer alerts",
+    "The Adhan plays for each prayer, and a bell for Sunrise. You can change the muadhin, and which prayers play the Adhan, at any time under Account & Settings, Notifications & Adhan.",
+  );
+  const next = promptButton("Continue");
+  const skip = promptButton("Skip for now", false);
+  next.addEventListener("click", onDone);
+  skip.addEventListener("click", onDone);
+  controls.append(next, skip);
+  overlay.replaceChildren(frame);
+}
+
+/**
+ * Step 4: exact alarms and battery use, so the Adhan rings on time. Shown only when
+ * something still needs changing. On the web, or when everything is allowed, it is skipped.
+ */
+async function showAlarmPrompt(overlay, onDone) {
+  const status = inNativeApp() ? await getAlarmStatus() : null;
+  if (!status || (status.exactAlarms && status.batteryUnrestricted)) {
+    onDone();
+    return;
+  }
+  const { frame, controls } = promptFrame(
+    "Alarms and reminders",
+    "So prayer alerts ring on time, allow “Alarms & reminders” for TAZAWWUD, and set the battery for TAZAWWUD to Unrestricted. Your phone opens each setting for you. You can change these later, and a warning on the Notifications page stays until they are fixed.",
+  );
+  if (!status.exactAlarms) {
+    const allow = promptButton("Allow alarms");
+    allow.addEventListener("click", () => openExactAlarmSettings());
+    controls.append(allow);
+  }
+  if (!status.batteryUnrestricted) {
+    const battery = promptButton("Battery settings", false);
+    battery.addEventListener("click", () => openBatterySettings());
+    controls.append(battery);
+  }
+  const done = promptButton("Continue");
+  done.addEventListener("click", onDone);
+  controls.append(done);
+  overlay.replaceChildren(frame);
+}
+
 export function maybeStartOnboarding() {
   if (isOnboardingDone()) return;
 
@@ -218,6 +266,7 @@ export function maybeStartOnboarding() {
   document.body.append(overlay);
 
   let index = 0;
+  let phase = "intro";
   const finish = () => {
     markOnboardingDone();
     overlay.remove();
@@ -230,7 +279,7 @@ export function maybeStartOnboarding() {
     title.textContent = screen.title;
     text.textContent = screen.text;
     dotNodes.forEach((d, n) => { d.style.background = n === i ? "#a7d8c9" : "transparent"; });
-    action.textContent = "Get started";
+    action.textContent = i < SCREENS.length - 1 ? "Continue" : "Get started";
   };
 
   const askPermissions = async () => {
@@ -248,14 +297,20 @@ export function maybeStartOnboarding() {
     if (notes.length) message.textContent = notes.join(" ");
     action.disabled = false;
     action.textContent = "Continue";
-    action.onclick = () => showQuranPrompt(overlay, () => showHadithPrompt(overlay, finish));
+    phase = "permissions-done";
   };
 
+  // One handler for the main button, moving through the steps in order.
   action.addEventListener("click", () => {
-    if (index < SCREENS.length - 1) {
-      showScreen(index + 1);
-    } else {
-      askPermissions();
+    if (phase === "intro") {
+      if (index < SCREENS.length - 1) {
+        showScreen(index + 1);
+      } else {
+        askPermissions();
+      }
+    } else if (phase === "permissions-done") {
+      phase = "downloads";
+      showQuranPrompt(overlay, () => showHadithPrompt(overlay, () => showAdhanPrompt(overlay, () => showAlarmPrompt(overlay, finish))));
     }
   });
   skip.addEventListener("click", finish);

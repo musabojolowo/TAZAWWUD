@@ -165,8 +165,6 @@ public class PrayerCountdownService extends Service {
         long now = System.currentTimeMillis();
         String name = (String) next[0];
         long at = ((Long) next[1]).longValue();
-        long minutes = Math.max(0, (at - now) / 60000L);
-        String left = minutes >= 60 ? (minutes / 60) + "h " + (minutes % 60) + "m" : minutes + "m";
 
         String place = PrayerLocation.label(context);
         StringBuilder bigText = new StringBuilder(place).append("\n")
@@ -184,7 +182,12 @@ public class PrayerCountdownService extends Service {
         return new NotificationCompat.Builder(context, PrayerNotifier.COUNTDOWN_CHANNEL)
             .setSmallIcon(context.getApplicationInfo().icon)
             .setContentTitle("Next: " + PrayerScheduler.label(name, at) + " · " + clock(at))
-            .setContentText(place + " · " + left + " left")
+            .setContentText(place)
+            // Android counts down to the prayer itself, showing seconds, with no per-second updates from the app.
+            .setUsesChronometer(true)
+            .setChronometerCountDown(true)
+            .setWhen(at)
+            .setShowWhen(true)
             .setStyle(new NotificationCompat.BigTextStyle().bigText(bigText.toString()))
             .setOngoing(true)
             .setSilent(true)

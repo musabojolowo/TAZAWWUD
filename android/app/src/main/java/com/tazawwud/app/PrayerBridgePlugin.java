@@ -81,4 +81,69 @@ public class PrayerBridgePlugin extends Plugin {
             call.reject("Could not open the battery settings.");
         }
     }
+
+    /** Whether location services are on, and whether the app has location permission. */
+    @PluginMethod
+    public void getLocationStatus(PluginCall call) {
+        android.content.Context context = getContext();
+        boolean servicesOn = true;
+        android.location.LocationManager manager = (android.location.LocationManager) context.getSystemService(android.content.Context.LOCATION_SERVICE);
+        if (manager != null) {
+            servicesOn = android.os.Build.VERSION.SDK_INT >= 28
+                ? manager.isLocationEnabled()
+                : (manager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)
+                    || manager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER));
+        }
+        boolean permission = androidx.core.content.ContextCompat.checkSelfPermission(context,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            || androidx.core.content.ContextCompat.checkSelfPermission(context,
+            android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        JSObject result = new JSObject();
+        result.put("servicesOn", servicesOn);
+        result.put("permission", permission);
+        call.resolve(result);
+    }
+
+    /** Opens the phone's location settings (services on or off). */
+    @PluginMethod
+    public void openLocationSettings(PluginCall call) {
+        try {
+            getActivity().startActivity(new android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Could not open the location settings.");
+        }
+    }
+
+    /** Opens this app's permission page, where location can be allowed. */
+    @PluginMethod
+    public void openAppSettings(PluginCall call) {
+        try {
+            android.content.Intent intent = new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            intent.setData(android.net.Uri.parse("package:" + getContext().getPackageName()));
+            getActivity().startActivity(intent);
+            call.resolve();
+        } catch (Exception error) {
+            call.reject("Could not open the app settings.");
+        }
+    }
+
+    /** Stores the admin reminders and rebuilds the alarms. */
+    @PluginMethod
+    public void saveCustomReminders(PluginCall call) {
+        String json = call.getString("json", "[]");
+        CustomReminders.save(getContext(), json);
+        PrayerScheduler.refresh(getContext());
+        call.resolve();
+    }
+
+    /** Shows an admin reminder right away, once per id. */
+    @PluginMethod
+    public void showNowReminder(PluginCall call) {
+        String title = call.getString("title", "TAZAWWUD");
+        String body = call.getString("body", "");
+        String id = call.getString("id", "");
+        PrayerNotifier.showReminder(getContext(), title, body, "tazawwud-immediate-" + id);
+        call.resolve();
+    }
 }

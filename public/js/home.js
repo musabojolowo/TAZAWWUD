@@ -26,6 +26,7 @@ import { formatGregorianDate, getTodayHijriLabel } from "./calendar.js";
 import { TRACKED_PRAYERS, getDayStatus, setPrayed, markAllPrayed, countPrayed, dayKey, currentStreak } from "./tracker.js";
 import { navigateTo } from "./app.js";
 import { syncNativeSchedule } from "./native-bridge.js";
+import { startLocationWatch } from "./location-watch.js";
 
 const EXPLORE_ROOT_ID = "home-explore-root";
 
@@ -63,12 +64,12 @@ function pad(n) {
 function formatCountdown(target) {
   const diffMs = target.getTime() - Date.now();
   if (diffMs <= 0) return "Now";
-  // Written as units, so it is clear: "6h 01m" or "45 min". Minutes only, so the screen
-  // changes once a minute, not once a second.
-  const totalMinutes = Math.floor(diffMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return hours > 0 ? `${hours}h ${pad(minutes)}m` : `${minutes} min`;
+  // H:MM:SS, or M:SS within the hour, like the phone's own countdown.
+  const total = Math.floor(diffMs / 1000);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${minutes}:${pad(seconds)}`;
 }
 
 function clearCountdown() {
@@ -79,10 +80,8 @@ function clearCountdown() {
 }
 
 function greetingText() {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  // The Arabic greeting, shown at all times of day.
+  return "السلام عليكم";
 }
 
 /** Greeting + location + today's date (Gregorian now, Hijri fills in once
@@ -91,7 +90,7 @@ function renderGreeting(locationLabel) {
   return `
     <header class="home-greeting">
       <div class="home-greeting__text">
-        <p class="home-greeting__hello">${greetingText()}</p>
+        <p class="home-greeting__hello" lang="ar" dir="rtl">${greetingText()}</p>
         <p class="home-greeting__date">
           ${escapeHtml(formatGregorianDate(new Date()))}
           <span class="home-greeting__date-sep">•</span>
@@ -551,7 +550,7 @@ function renderDashboard(root, snapshot) {
 function startCountdown(root, next) {
   const el = root.querySelector("[data-home-countdown]");
   if (!el) return;
-  // Checked every 15 seconds, but the text is only replaced when the minute changes.
+  // Once a second. Only this number is replaced; the rest of the card is not redrawn.
   countdownTimer = window.setInterval(() => {
     const remainingMs = next.target.getTime() - Date.now();
     if (remainingMs <= 0) {
@@ -561,7 +560,7 @@ function startCountdown(root, next) {
     }
     const text = formatCountdown(next.target);
     if (el.textContent !== text) el.textContent = text;
-  }, 15000);
+  }, 1000);
 }
 
 // The last prayer snapshot, kept on the device so Home can show it the moment the app opens.
@@ -609,6 +608,7 @@ async function loadDashboard(root) {
   // Show what we know at once: this session's times, else the saved times, else the empty layout.
   const shown = lastSnapshot || readSavedSnapshot() || EMPTY_SNAPSHOT;
   renderDashboard(root, shown);
+  window.dispatchEvent(new CustomEvent("tazawwud:home-rendered", { detail: root }));
   try {
     const snapshot = await withTimeout(getPrayerSnapshot(), DASHBOARD_LOAD_LIMIT_MS);
     if (!snapshot) {
@@ -617,7 +617,9 @@ async function loadDashboard(root) {
     }
     lastSnapshot = snapshot;
     saveSnapshot(snapshot);
+    import("./reminders-sync.js").then((m) => m.syncReminders()).catch(() => {});
     renderDashboard(root, snapshot);
+    window.dispatchEvent(new CustomEvent("tazawwud:home-rendered", { detail: root }));
   } catch (error) {
     console.error("[TAZAWWUD] Failed to load Home prayer snapshot:", error);
     if (shown === EMPTY_SNAPSHOT) renderUnavailable(root);
@@ -627,6 +629,7 @@ async function loadDashboard(root) {
 /** Called by app.js each time the Home view is shown. */
 export function initHomeDashboard(root) {
   if (!root) return;
+  startLocationWatch();
   loadDashboard(root);
 }
 
