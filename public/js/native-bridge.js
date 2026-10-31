@@ -255,3 +255,14 @@ export async function showNowReminder(id, title, body) {
     // Not shown; it is tried again the next time the app opens.
   }
 }
+
+/** The phone's push token, or null outside the app or if it is not available. */
+export async function getPushToken() {
+  if (!inNativeApp()) return null;
+  try {
+    const result = await plugin("PrayerBridge").getPushToken();
+    return result?.token ? String(result.token) : null;
+  } catch {
+    return null;
+  }
+}

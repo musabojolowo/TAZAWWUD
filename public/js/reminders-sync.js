@@ -7,14 +7,24 @@
 // ============================================================================
 
 import { db } from "./firebase-config.js";
-import { ref, get } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
-import { inNativeApp, saveCustomReminders, showNowReminder } from "./native-bridge.js";
+import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+import { inNativeApp, saveCustomReminders, showNowReminder, getPushToken } from "./native-bridge.js";
 
 const SEEN_KEY = "tazawwud:seen-immediate-reminders";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+/** Saves this phone's push token, so "Send now" reminders can reach it. The value is the time it was saved. */
+export async function registerPushToken() {
+  const token = await getPushToken();
+  if (!token) return;
+  // Firebase keys cannot contain "." "#" "$" "[" "]" "/", so the token is used as the key only if it is safe.
+  if (/[.#$\[\]\/]/.test(token)) return;
+  await set(ref(db, `pushTokens/${token}`), Date.now());
+}
+
 export async function syncReminders() {
   if (!inNativeApp()) return;
+  await registerPushToken().catch(() => {});
   const [regularSnap, immediateSnap] = await Promise.all([
     get(ref(db, "reminders")),
     get(ref(db, "immediateReminders")),

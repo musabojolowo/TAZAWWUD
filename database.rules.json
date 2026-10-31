@@ -225,6 +225,17 @@
           ".validate": false
         }
       }
+    },
+    "pushTokens": {
+      ".read": false,
+      "$token": {
+        ".write": true,
+        ".validate": "newData.isNumber() || (newData.isString() && newData.val().length <= 4096)"
+      }
+    },
+    "pushSent": {
+      ".read": false,
+      ".write": false
     }
   }
 }

@@ -146,4 +146,21 @@ public class PrayerBridgePlugin extends Plugin {
         PrayerNotifier.showReminder(getContext(), title, body, "tazawwud-immediate-" + id);
         call.resolve();
     }
+
+    /** The phone's push token, so the server can send it "Send now" reminders. Resolves empty if not available. */
+    @PluginMethod
+    public void getPushToken(PluginCall call) {
+        try {
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().getToken()
+                .addOnCompleteListener(task -> {
+                    JSObject result = new JSObject();
+                    if (task.isSuccessful() && task.getResult() != null) {
+                        result.put("token", task.getResult());
+                    }
+                    call.resolve(result);
+                });
+        } catch (Exception error) {
+            call.resolve(new JSObject());
+        }
+    }
 }

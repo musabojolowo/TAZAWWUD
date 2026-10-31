@@ -23,10 +23,8 @@ import { fetchJsonWithFallback } from "./error-boundary.js";
 // Branch names are tried in order. The repository's default branch is not
 // verified, so both common names are included.
 const SOURCES = [
-  "https://cdn.jsdelivr.net/gh/wafaaelmaandy/Hisn-Muslim-Json@master/husn_en.json",
-  "https://cdn.jsdelivr.net/gh/wafaaelmaandy/Hisn-Muslim-Json@main/husn_en.json",
-  "https://raw.githubusercontent.com/wafaaelmaandy/Hisn-Muslim-Json/master/husn_en.json",
-  "https://raw.githubusercontent.com/wafaaelmaandy/Hisn-Muslim-Json/main/husn_en.json",
+  // Our own copy, served from this site. Source: OpenDua (CC BY 4.0). See the About page.
+  "/data/hisn-duas.json",
 ];
 const FETCH_TIMEOUT = 60000;
 
@@ -205,19 +203,40 @@ function renderChapterList(container, meta, book, onBack, filter = "") {
   });
 }
 
+const LEVEL_KEY = "tazawwud:hisn-level";
+const LEVELS = [
+  { id: "arabic", label: "Arabic only" },
+  { id: "translit", label: "Arabic and transliteration" },
+  { id: "full", label: "Arabic, transliteration and translation" },
+];
+
+function readLevel() {
+  const saved = globalThis.localStorage?.getItem(LEVEL_KEY);
+  return LEVELS.some((l) => l.id === saved) ? saved : "full";
+}
+
+function levelSelect(current) {
+  return `<label class="hisn-level">Reading level
+    <select data-hisn-level>${LEVELS.map((l) => `<option value="${l.id}" ${l.id === current ? "selected" : ""}>${l.label}</option>`).join("")}</select>
+  </label>`;
+}
+
 function renderChapter(container, meta, book, chapter, onBack, filter) {
+  const level = readLevel();
   container.innerHTML = `
     ${backButton("hisn-back-chapters", "All Chapters")}
     <h3 class="hisn-chapter-heading">${escapeHtml(chapter.title)}</h3>
+    ${levelSelect(level)}
     <div class="hisn-duas">
       ${chapter.items.map((item, index) => `
         <article class="hisn-dua">
           ${item.arabic ? `<p class="hisn-dua__arabic" lang="ar" dir="rtl">${multiline(item.arabic)}</p>` : ""}
-          ${item.transliteration ? `<p class="hisn-dua__translit">${multiline(item.transliteration)}</p>` : ""}
-          ${item.translation ? `<p class="hisn-dua__translation">${multiline(item.translation)}</p>` : ""}
+          ${level !== "arabic" && item.transliteration ? `<p class="hisn-dua__translit">${multiline(item.transliteration)}</p>` : ""}
+          ${level === "full" && item.translation ? `<p class="hisn-dua__translation">${multiline(item.translation)}</p>` : ""}
           <p class="hisn-dua__meta">
             <span>${index + 1} / ${chapter.items.length}</span>
             ${item.repeat > 1 ? `<span class="hisn-dua__repeat">Repeat ${item.repeat}×</span>` : ""}
+            ${item.arabic ? `<button type="button" class="dhikr-listen-button" data-hisn-listen="${index}" aria-label="Listen to this dua">Listen</button>` : ""}
           </p>
         </article>
       `).join("")}
@@ -227,7 +246,37 @@ function renderChapter(container, meta, book, chapter, onBack, filter) {
   container.querySelector("#hisn-back-chapters")?.addEventListener("click", () =>
     renderChapterList(container, meta, book, onBack, filter)
   );
+  container.querySelector("[data-hisn-level]")?.addEventListener("change", (event) => {
+    globalThis.localStorage?.setItem(LEVEL_KEY, event.target.value);
+    renderChapter(container, meta, book, chapter, onBack, filter);
+  });
+  container.querySelectorAll("[data-hisn-listen]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const item = chapter.items[Number(button.dataset.hisnListen)];
+      speakArabic(item?.arabic || "", button);
+    });
+  });
   container.scrollIntoView?.({ block: "start" });
+}
+
+/**
+ * Reads the Arabic dua aloud with the phone's own Arabic voice. Free, and needs no recording.
+ * If the phone has no Arabic voice, the button says so.
+ */
+function speakArabic(text, button) {
+  if (!text || !("speechSynthesis" in window)) {
+    button.textContent = "Not available";
+    button.disabled = true;
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "ar-SA";
+  utterance.rate = 0.85;
+  button.textContent = "Playing…";
+  utterance.onend = () => { button.textContent = "Listen"; };
+  utterance.onerror = () => { button.textContent = "Listen"; };
+  window.speechSynthesis.speak(utterance);
 }
 
 // ----------------------------------------------------------------------------
