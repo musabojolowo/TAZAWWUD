@@ -185,6 +185,10 @@ async function loadFawazahmed0Collection(meta) {
     hadithsByChapter.get(chapterNum).push(merged);
   });
 
+  // Hadiths with no chapter are not listed.
+  for (let i = chapterOrder.length - 1; i >= 0; i -= 1) {
+    if (chapterOrder[i] === 0) { chapterOrder.splice(i, 1); hadithsByChapter.delete(0); }
+  }
   chapterOrder.sort((a, b) => a - b);
 
   const chapters = chapterOrder.map((num) => ({
@@ -257,6 +261,10 @@ async function loadAhmedbasetCollection(meta) {
     hadithsByChapter.get(chapterNum).push(merged);
   });
 
+  // Hadiths with no chapter are not listed.
+  for (let i = chapterOrder.length - 1; i >= 0; i -= 1) {
+    if (chapterOrder[i] === 0) { chapterOrder.splice(i, 1); hadithsByChapter.delete(0); }
+  }
   chapterOrder.sort((a, b) => a - b);
 
   const chapters = chapterOrder.map((num) => ({

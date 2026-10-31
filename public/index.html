@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="/css/tracker.css" />
   <link rel="stylesheet" href="/css/home-redesign.css" />
   <link rel="stylesheet" href="/css/adhkar-redesign.css" />
+  <link rel="stylesheet" href="/css/admin-reminders.css" />
   <link rel="stylesheet" href="/css/sidebar-redesign.css" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
@@ -102,6 +103,7 @@
           <span class="material-symbols-rounded icon" aria-hidden="true">notifications</span>
           <span>Notifications &amp; Adhan</span>
         </button>
+        <button type="button" class="settings-row-btn" data-goto-view="notifications" data-goto-anchor="nt-adhkar-heading"><span class="icon material-symbols-rounded" aria-hidden="true">self_improvement</span><span>Adhkar Settings</span></button>
         <button type="button" class="settings-row-btn" data-goto-view="quran">
           <span class="material-symbols-rounded icon" aria-hidden="true">translate</span>
           <span>Qur'an Translation &amp; Reciter</span>
@@ -114,7 +116,7 @@
         <p id="offline-status" class="settings-note">Checking…</p>
       </section>
 
-      <details class="settings-section settings-section--reminders" open>
+      <details class="settings-section settings-section--reminders" hidden>
         <summary id="settings-reminders-heading" class="settings-section__heading">Daily Reminders</summary>
         <p class="settings-note">
           Local notifications at a time you choose, every day. Only fire while TAZAWWUD is open

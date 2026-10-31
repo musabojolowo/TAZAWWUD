@@ -10,6 +10,8 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.widget.RemoteViews;
 
 import androidx.core.app.NotificationCompat;
 
@@ -39,6 +41,16 @@ public class PrayerCountdownService extends Service {
             handler.postDelayed(this, 60000L);
         }
     };
+
+    /** Brings the card back a few minutes after it was swiped away. */
+    static void scheduleRestore(Context context) {
+        android.app.AlarmManager alarms = (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarms == null) return;
+        PendingIntent again = PendingIntent.getBroadcast(context, 79,
+            new Intent(context, PrayerAlarmReceiver.class).putExtra("kind", "card-show"),
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        alarms.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 3 * 60 * 1000L, again);
+    }
 
     /** Starts the card only when there are cached prayer times to show. */
     static void start(Context context) {
@@ -179,20 +191,28 @@ public class PrayerCountdownService extends Service {
         Intent open = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
         PendingIntent tap = PendingIntent.getActivity(context, 0, open,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        RemoteViews card = new RemoteViews(context.getPackageName(), R.layout.notification_prayer);
+        card.setTextViewText(R.id.pill, "Next");
+        card.setTextViewText(R.id.title, PrayerScheduler.label(name, at));
+        card.setTextViewText(R.id.time, clock(at));
+        card.setTextViewText(R.id.place, place);
+        card.setTextViewText(R.id.prayed, prayedText(context));
+        // The countdown is Android's own timer: it shows the seconds and needs no updates from the app.
+        card.setChronometer(R.id.countdown, SystemClock.elapsedRealtime() + (at - now), null, true);
+        card.setChronometerCountDown(R.id.countdown, true);
         return new NotificationCompat.Builder(context, PrayerNotifier.COUNTDOWN_CHANNEL)
             .setSmallIcon(context.getApplicationInfo().icon)
-            .setContentTitle("Next: " + PrayerScheduler.label(name, at) + " · " + clock(at))
-            .setContentText(place)
-            // Android counts down to the prayer itself, showing seconds, with no per-second updates from the app.
-            .setUsesChronometer(true)
-            .setChronometerCountDown(true)
-            .setWhen(at)
-            .setShowWhen(true)
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(bigText.toString()))
+            .setContentTitle("TAZAWWUD")
+            .setCustomContentView(card)
+            .setCustomBigContentView(card)
             .setOngoing(true)
             .setSilent(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(tap)
+            // If the person swipes it away, it comes back a few minutes later.
+            .setDeleteIntent(PendingIntent.getBroadcast(context, 78,
+                new Intent(context, PrayerAlarmReceiver.class).putExtra("kind", "card-restore"),
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE))
             .build();
     }
 

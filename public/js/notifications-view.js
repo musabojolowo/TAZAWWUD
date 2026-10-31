@@ -27,6 +27,11 @@ export function initNotifications(root) {
   ensureStylesheet();
   root.innerHTML = renderMarkup();
   showAlarmWarning(root);
+  const target = sessionStorage.getItem("tazawwud:scroll-to");
+  if (target) {
+    sessionStorage.removeItem("tazawwud:scroll-to");
+    requestAnimationFrame(() => root.querySelector(`#${target}`)?.scrollIntoView({ block: "start" }));
+  }
 
   const notificationManager = getNotificationManager();
   const notificationToggle = root.querySelector("[data-salah-notifications]");

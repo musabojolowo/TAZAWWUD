@@ -468,9 +468,13 @@ function openSurahInReader(surahNumber) {
  * the settings sidebar, Tasbih, etc.) for views that don't have their own
  * static nav-link element to click.
  */
+// The pages visited, most recent last. The phone's back button goes back through them.
+const backStack = [];
+
 export function navigateTo(viewName) {
   // A real change of page adds a history entry, so the phone's back button returns to the page before.
   if (appState.currentView !== viewName) {
+    backStack.push(appState.currentView);
     showView(viewName);
     history.pushState({ view: viewName }, "", `#${viewName}`);
   } else {
@@ -478,7 +482,31 @@ export function navigateTo(viewName) {
   }
 }
 
+/**
+ * Called by the Android app when its back button is pressed. Returns true when it handled it
+ * (went back a page, or to Home). Returns false on Home with nothing before it, so the app leaves.
+ */
+window.tazawwudHandleBack = () => {
+  if (backStack.length) {
+    const previous = backStack.pop();
+    showView(previous);
+    history.replaceState(null, "", `#${previous}`);
+    return true;
+  }
+  if (appState.currentView !== "home") {
+    showView("home");
+    history.replaceState(null, "", "#home");
+    return true;
+  }
+  return false;
+};
+
 function initRouter() {
+  // A settings row can ask the page to scroll to one of its groups once it opens.
+  document.addEventListener("click", (event) => {
+    const row = event.target.closest?.("[data-goto-anchor]");
+    if (row) sessionStorage.setItem("tazawwud:scroll-to", row.dataset.gotoAnchor);
+  }, true);
   // The phone's back button (and the browser's back button): show the page that was open before.
   window.addEventListener("popstate", () => {
     const view = window.location.hash.replace("#", "").split("/")[0] || "home";

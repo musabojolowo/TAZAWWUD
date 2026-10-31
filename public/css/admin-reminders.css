@@ -1,0 +1,26 @@
+/* Admin: Adhkar and reminders. Same spacing and colours as the rest of the admin page. */
+.admin-reminders { margin: 16px 0; padding: 16px; border-radius: 16px; border: 1px solid var(--color-border, rgba(255,255,255,0.12)); background: var(--color-surface, rgba(255,255,255,0.04)); color: var(--color-text, #e8f3ef); }
+.admin-reminders h3 { margin: 0 0 6px; font-size: 18px; color: var(--color-primary, #0a7048); }
+.admin-reminders h4 { margin: 18px 0 8px; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-accent, #f6d58b); }
+.admin-reminders__note { margin: 0 0 12px; font-size: 14px; line-height: 1.5; color: var(--color-text-muted, #b9d9d0); }
+.admin-reminders__form { display: grid; gap: 10px; }
+.admin-reminders__form label { display: grid; gap: 4px; font-size: 13px; color: var(--color-text-muted, #b9d9d0); }
+.admin-reminders__form input[type="text"], .admin-reminders__form input:not([type]), .admin-reminders__form input[type="time"], .admin-reminders__form textarea {
+  width: 100%; min-height: 40px; padding: 8px 10px; border-radius: 10px; box-sizing: border-box;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.16)); background: var(--color-bg, #0b1a15); color: var(--color-text, #e8f3ef); font: inherit;
+}
+.admin-reminders__check { display: flex !important; align-items: center; gap: 8px; }
+.admin-reminders__check input { width: 18px; height: 18px; accent-color: var(--color-primary, #0a7048); }
+.admin-reminders__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-reminders button {
+  min-height: 40px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--color-primary, #0a7048); background: var(--color-primary, #0a7048); color: #ffffff;
+}
+.admin-reminders button[data-reminder-cancel], .admin-reminders__item button { background: transparent; color: var(--color-primary, #0a7048); }
+.admin-reminders button[data-reminder-delete] { border-color: #b3261e; color: #b3261e; }
+.admin-reminders__status { margin: 0; font-size: 13px; color: var(--color-accent, #f6d58b); min-height: 18px; }
+.admin-reminders__list, .admin-reminders__history { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.admin-reminders__item, .admin-reminders__history li { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--color-border, rgba(255,255,255,0.12)); background: var(--color-bg, #0b1a15); font-size: 14px; }
+.admin-reminders__item { display: grid; gap: 8px; }
+.admin-reminders__item.is-paused { opacity: 0.6; }
+.admin-reminders__history li { font-size: 13px; color: var(--color-text-muted, #b9d9d0); }
