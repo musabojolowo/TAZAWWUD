@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The curve of the day's prayers, with a dot for each prayer. Drawn in our own colours. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="300dp"
+    android:height="64dp"
+    android:viewportWidth="300"
+    android:viewportHeight="64">
+    <path
+        android:pathData="M10,52 C60,52 95,8 150,8 C205,8 240,40 290,40"
+        android:strokeColor="#66FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M19,52 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M69,33 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M145,8 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M216,27 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M285,40 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+</vector>
