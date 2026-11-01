@@ -26,7 +26,7 @@ async function accessToken() {
   const header = b64url({ alg: "RS256", typ: "JWT" });
   const claims = b64url({
     iss: serviceAccount.client_email,
-    scope: "https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/firebase.messaging",
+    scope: "https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/firebase.messaging https://www.googleapis.com/auth/userinfo.email",
     aud: "https://oauth2.googleapis.com/token",
     iat: now,
     exp: now + 3600,
