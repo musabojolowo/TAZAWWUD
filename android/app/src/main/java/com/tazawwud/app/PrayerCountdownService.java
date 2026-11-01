@@ -42,6 +42,28 @@ public class PrayerCountdownService extends Service {
         }
     };
 
+    /**
+     * The curve drawable for today: the number of the next prayer (0 to 4), or all filled
+     * once all five have passed.
+     */
+    static int curveFor(Context context, Object[] next, long now) {
+        int[] curves = {
+            R.drawable.prayer_curve_0, R.drawable.prayer_curve_1, R.drawable.prayer_curve_2,
+            R.drawable.prayer_curve_3, R.drawable.prayer_curve_4, R.drawable.prayer_curve_5
+        };
+        List<Object[]> today = PrayerScheduler.todayPrayers(context);
+        boolean allPassed = !today.isEmpty();
+        int index = -1;
+        for (int i = 0; i < today.size(); i++) {
+            String name = (String) today.get(i)[0];
+            long at = ((Long) today.get(i)[1]).longValue();
+            if (at > now) allPassed = false;
+            if (index < 0 && next != null && name.equals(next[0]) && at == ((Long) next[1]).longValue()) index = i;
+        }
+        if (allPassed) return curves[5];
+        return curves[Math.max(0, Math.min(4, index))];
+    }
+
     /** Brings the card back a few minutes after it was swiped away. */
     static void scheduleRestore(Context context) {
         android.app.AlarmManager alarms = (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
@@ -197,6 +219,7 @@ public class PrayerCountdownService extends Service {
         card.setTextViewText(R.id.time, clock(at));
         card.setTextViewText(R.id.place, place);
         card.setTextViewText(R.id.prayed, prayedText(context));
+        card.setImageViewResource(R.id.curve, curveFor(context, next, now));
         // The countdown is Android's own timer: it shows the seconds and needs no updates from the app.
         card.setChronometer(R.id.countdown, SystemClock.elapsedRealtime() + (at - now), null, true);
         card.setChronometerCountDown(R.id.countdown, true);
