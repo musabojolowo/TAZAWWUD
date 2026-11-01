@@ -1,0 +1,17 @@
+/* Adhkar: clearer spacing, larger Arabic text, and the Listen button. */
+.adhkar-list { display: grid; gap: 14px; margin-top: 12px; }
+.dhikr-card { padding: 16px; border-radius: 16px; border: 1px solid var(--color-border, rgba(255,255,255,0.12)); background: var(--color-surface, rgba(255,255,255,0.04)); }
+.dhikr-card__copy { display: grid; gap: 8px; }
+.dhikr-card__arabic { margin: 0; font-size: 22px; line-height: 1.9; color: var(--color-text, #e8f3ef); font-family: "Noto Naskh Arabic", "Amiri", serif; }
+.dhikr-card__translation { margin: 0; font-size: 15px; line-height: 1.55; color: var(--color-text-muted, #b9d9d0); }
+.dhikr-card__counter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.dhikr-card__progress { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 5ch; color: var(--color-text, #e8f3ef); }
+.dhikr-count-button, .dhikr-reset-button, .dhikr-listen-button {
+  min-height: 40px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  border: 1px solid var(--color-primary, #0a7048);
+}
+.dhikr-count-button { background: var(--color-primary, #0a7048); color: #ffffff; display: inline-flex; align-items: center; gap: 6px; }
+.dhikr-count-button:disabled { background: transparent; color: var(--color-primary, #0a7048); }
+.dhikr-reset-button, .dhikr-listen-button { background: transparent; color: var(--color-primary, #0a7048); }
+.dhikr-card.is-complete { border-color: var(--color-accent, #f6d58b); }
+button:focus-visible { outline: 2px solid var(--color-focus, #f6d58b); outline-offset: 2px; }

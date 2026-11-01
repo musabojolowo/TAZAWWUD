@@ -9,6 +9,14 @@ public class PrayerAlarmReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         String kind = intent.getStringExtra("kind");
+        if ("card-restore".equals(kind)) {
+            PrayerCountdownService.scheduleRestore(context);
+            return;
+        }
+        if ("card-show".equals(kind)) {
+            PrayerCountdownService.start(context);
+            return;
+        }
         String prayer = intent.getStringExtra("prayer");
         String title = intent.getStringExtra("title");
         if (kind != null) {

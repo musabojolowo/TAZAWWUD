@@ -20,7 +20,9 @@ final class PrayerNotifier {
     static final String ADHAN_CHANNEL = "adhan_v2";
     private static final String OLD_ADHAN_CHANNEL = "adhan";
     static final String REMINDER_CHANNEL = "reminders";
-    static final String COUNTDOWN_CHANNEL = "countdown";
+    // A new id, so the card moves to the main panel. Android cannot change an existing channel's importance.
+    static final String COUNTDOWN_CHANNEL = "countdown_v2";
+    static final String OLD_COUNTDOWN_CHANNEL = "countdown";
     static final int COUNTDOWN_ID = 9001;
     private static final int ADHAN_BASE_ID = 9100;
     private static final int REMINDER_BASE_ID = 9200;
@@ -52,9 +54,11 @@ final class PrayerNotifier {
         reminders.setDescription("Qur'an, Adhkar and Jumu'ah reminders");
         manager.createNotificationChannel(reminders);
 
-        // The countdown channel is silent and cannot be swiped to make a sound.
+        // Old silent channel removed, so the card is not listed twice.
+        manager.deleteNotificationChannel(OLD_COUNTDOWN_CHANNEL);
+        // Default importance, so the card sits in the main panel. It never makes a sound.
         NotificationChannel countdown = new NotificationChannel(COUNTDOWN_CHANNEL,
-            "Next prayer countdown", NotificationManager.IMPORTANCE_LOW);
+            "Next prayer countdown", NotificationManager.IMPORTANCE_DEFAULT);
         countdown.setDescription("Shows the next prayer and the time left");
         countdown.setSound(null, null);
         manager.createNotificationChannel(countdown);

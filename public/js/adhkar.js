@@ -96,6 +96,7 @@ function renderDhikrItem(item, counts) {
           <span>${complete ? "Completed" : "Count"}</span>
         </button>
         <button type="button" class="dhikr-reset-button" data-dhikr-reset>Reset</button>
+        <button type="button" class="dhikr-listen-button" data-dhikr-listen aria-label="Listen to this dhikr">Listen</button>
       </div>
     </article>
   `;
@@ -128,6 +129,26 @@ function renderAdhkar(root, counts) {
   wireCounters(root, counts);
 }
 
+/**
+ * Reads the Arabic dhikr aloud, using the phone's own Arabic voice. It is free, and needs no
+ * recording. Recorded audio can replace it later, once a source with a licence is approved.
+ */
+function speakArabic(text, button) {
+  if (!("speechSynthesis" in window)) {
+    button.textContent = "Not available";
+    button.disabled = true;
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "ar-SA";
+  utterance.rate = 0.85;
+  button.textContent = "Playing…";
+  utterance.onend = () => { button.textContent = "Listen"; };
+  utterance.onerror = () => { button.textContent = "Listen"; };
+  window.speechSynthesis.speak(utterance);
+}
+
 function wireCounters(root, counts) {
   root.querySelectorAll(".dhikr-card").forEach((card) => {
     const id = card.dataset.dhikrId;
@@ -142,6 +163,9 @@ function wireCounters(root, counts) {
       const button = card.querySelector("[data-dhikr-count]");
       button.disabled = complete;
       button.innerHTML = `<span class="material-symbols-rounded icon" aria-hidden="true">${complete ? "check" : "touch_app"}</span><span>${complete ? "Completed" : "Count"}</span>`;
+    });
+    card.querySelector("[data-dhikr-listen]").addEventListener("click", (event) => {
+      speakArabic(item.arabic, event.currentTarget);
     });
     card.querySelector("[data-dhikr-reset]").addEventListener("click", () => {
       counts[id] = 0;

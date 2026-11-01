@@ -9,3 +9,40 @@
 .home-track-all__button:disabled { background: rgba(255, 255, 255, 0.12); border-color: transparent; color: rgba(255, 255, 255, 0.6); cursor: default; }
 .home-track-all__count { color: #b9d9d0; font-size: 14px; margin: 0; }
 .home-track-streak { color: #f6d58b; font-weight: 600; font-size: 14px; margin: 6px 0 0; }
+
+/* Verse and Hadith of the Day sit below Explore. */
+.daily-featured-content { margin-top: 16px; }
+
+/* Fixed-width digits, so the seconds do not make the card move. */
+.home-next-prayer__countdown {
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  min-width: 6ch;
+  text-align: right;
+}
+
+/* Location note on Home: location is off, or not allowed. */
+.home-location-note {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #c9a227;
+  background: rgba(201, 162, 39, 0.12);
+  color: var(--color-text, #e8f3ef);
+}
+.home-location-note__text { margin: 0 0 8px; font-size: 14px; line-height: 1.45; }
+.home-location-note__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.home-location-note__actions button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--color-primary, #0a7048);
+}
+.home-location-note__later { background: transparent; color: var(--color-text, #e8f3ef); }
+.home-location-note__settings { background: var(--color-primary, #0a7048); color: #ffffff; }
+.home-location-note__actions button:focus-visible { outline: 2px solid var(--color-focus, #f6d58b); outline-offset: 2px; }
+

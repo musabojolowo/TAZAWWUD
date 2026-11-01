@@ -25,7 +25,7 @@ const SOURCES = [
   ["Qur’an text and translations", "AlQuran.cloud (api.alquran.cloud)."],
   ["Prayer times", "AlAdhan (aladhan.com)."],
   ["Hadith collections", "The open hadith API used by the app."],
-  ["Hisn al-Muslim (Fortress of the Muslim)", "By Sa’id bin Ali bin Wahf al-Qahtani. Arabic text, and the English meaning from the open Hisn-Muslim-Json dataset."],
+  ["Hisn al-Muslim (Fortress of the Muslim)", "By Sa’id bin Ali bin Wahf al-Qahtani. Arabic text, transliteration and English translation from OpenDua (opendua.org), licensed under Creative Commons Attribution 4.0 (CC BY 4.0)."],
   ["Icons", "Material Symbols by Google, licensed under the Apache License, Version 2.0."],
   ["Maps", "Mosque results open in Google Maps. Google Maps is a trademark of Google LLC."],
 ];

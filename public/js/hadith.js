@@ -185,12 +185,18 @@ async function loadFawazahmed0Collection(meta) {
     hadithsByChapter.get(chapterNum).push(merged);
   });
 
+  // Hadiths with no chapter are not listed.
+  for (let i = chapterOrder.length - 1; i >= 0; i -= 1) {
+    if (chapterOrder[i] === 0) { chapterOrder.splice(i, 1); hadithsByChapter.delete(0); }
+  }
   chapterOrder.sort((a, b) => a - b);
 
   const chapters = chapterOrder.map((num) => ({
     number: num,
-    name: sectionNames[String(num)] || `Chapter ${num}`,
+    // Chapter 0 holds hadiths the source does not place in a chapter. It is not "Chapter 0".
+    name: num === 0 ? "Hadiths without a chapter" : (sectionNames[String(num)] || `Chapter ${num}`),
     hadithCount: hadithsByChapter.get(num).length,
+    ...hadithRange(hadithsByChapter.get(num)),
   }));
 
   // A collection "provides grading" only if at least one narration carries a grade.
@@ -255,12 +261,17 @@ async function loadAhmedbasetCollection(meta) {
     hadithsByChapter.get(chapterNum).push(merged);
   });
 
+  // Hadiths with no chapter are not listed.
+  for (let i = chapterOrder.length - 1; i >= 0; i -= 1) {
+    if (chapterOrder[i] === 0) { chapterOrder.splice(i, 1); hadithsByChapter.delete(0); }
+  }
   chapterOrder.sort((a, b) => a - b);
 
   const chapters = chapterOrder.map((num) => ({
     number: num,
-    name: `Chapter ${num}`,
+    name: num === 0 ? "Hadiths without a chapter" : `Chapter ${num}`,
     hadithCount: hadithsByChapter.get(num).length,
+    ...hadithRange(hadithsByChapter.get(num)),
   }));
 
   return {
@@ -269,6 +280,13 @@ async function loadAhmedbasetCollection(meta) {
     hadithsByChapter,
     gradingProvided: false,
   };
+}
+
+/** The first and last hadith number in a chapter, as shown in the chapter list: "Hadith No: 1-7". */
+function hadithRange(list) {
+  const numbers = list.map((h) => Number(h.hadithnumber)).filter(Number.isFinite);
+  if (!numbers.length) return { from: null, to: null };
+  return { from: Math.min(...numbers), to: Math.max(...numbers) };
 }
 
 /**
@@ -416,7 +434,7 @@ function renderChapterList(container, collectionMeta, collectionInfo) {
           <span class="hadith-chapter-card__number">${ch.number}</span>
           <div class="hadith-chapter-card__body">
             <span class="hadith-chapter-card__name">${escapeHtml(ch.name)}</span>
-            <span class="hadith-chapter-card__count">${ch.hadithCount} narrations</span>
+            <span class="hadith-chapter-card__count">${ch.from != null ? `Hadith No: ${ch.from}-${ch.to}` : `${ch.hadithCount} narrations`}</span>
           </div>
           <span class="material-symbols-rounded icon hadith-chapter-card__chevron" aria-hidden="true">chevron_right</span>
         </li>

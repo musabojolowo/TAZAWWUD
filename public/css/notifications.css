@@ -233,3 +233,12 @@
 .nt-alarm__title { margin: 0 0 4px; font-weight: 700; }
 .nt-alarm__text { margin: 0 0 4px; font-size: 14px; line-height: 1.45; }
 .nt-alarm__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+
+/* Group headings: Notification Settings and Adhkar Settings. */
+.nt-group {
+  margin: 8px 0 0;
+  padding: 0 4px;
+  color: var(--color-text, #e8f3ef);
+  font-size: 18px;
+  font-weight: 700;
+}

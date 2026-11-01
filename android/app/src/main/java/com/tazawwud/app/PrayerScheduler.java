@@ -21,7 +21,8 @@ final class PrayerScheduler {
     /** Reminders use 4 codes per day: Qur'an, morning Adhkar, evening Adhkar, Friday. */
     private static final int SUN_BASE = 100;
     /** Sunrise and Sunset use 2 codes per day, from SUN_BASE. */
-    private static final int MAX_CODES = SUN_BASE + DAYS * 2;
+    // Covers the prayer, Adhkar and admin reminder codes, so the refresh clears them all.
+    private static final int MAX_CODES = CustomReminders.BASE + CustomReminders.MAX_REMINDERS * CustomReminders.PER_REMINDER;
     private static final long MINUTE = 60000L;
     private static final long HOUR = 60 * MINUTE;
 
@@ -39,6 +40,7 @@ final class PrayerScheduler {
                 Calendar day = Calendar.getInstance();
                 day.add(Calendar.DAY_OF_YEAR, d);
                 String key = dateKey(day);
+                CustomReminders.scheduleDay(app, day, d);
                 JSONObject times = parse(PrayerStore.loadDay(app, key));
                 // Days saved before Sunrise and Sunset were kept are fetched again.
                 if (times == null || !times.has("Sunrise")) {
@@ -123,7 +125,7 @@ final class PrayerScheduler {
     }
 
     /** Sets one exact alarm. A prayer name gives the Adhan; a title gives a reminder. */
-    private static void scheduleOne(Context app, int code, long at, String prayer,
+    static void scheduleOne(Context app, int code, long at, String prayer,
                                     String title, String body, String tag, String extra) {
         if (at <= System.currentTimeMillis()) return;
         Intent intent = new Intent(app, PrayerAlarmReceiver.class);

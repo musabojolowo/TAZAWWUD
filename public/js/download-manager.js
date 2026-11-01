@@ -228,6 +228,11 @@ export function createDownloadManager(deps) {
     };
   }
 
+  /** Downloads every collection in turn, as one job, so progress and pause or cancel cover the set. */
+  function startAllHadith(slugs) {
+    return load().then(() => runJob("hadith", "all", slugs.map((slug) => hadithItem(slug))));
+  }
+
   function startHadith(slug) {
     return load().then(() => runJob("hadith", slug, [hadithItem(slug)]));
   }
@@ -381,6 +386,7 @@ export function createDownloadManager(deps) {
     summary,
     startQuran,
     startHadith,
+    startAllHadith,
     startAudio,
     pauseJob,
     resumeJob,
