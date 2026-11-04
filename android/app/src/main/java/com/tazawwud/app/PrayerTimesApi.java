@@ -44,7 +44,7 @@ final class PrayerTimesApi {
             if (connection.getResponseCode() != 200) return null;
             String body;
             try (InputStream in = connection.getInputStream()) {
-                body = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                body = readText(in);
             } finally {
                 connection.disconnect();
             }
@@ -56,7 +56,8 @@ final class PrayerTimesApi {
                 result.put(name, timings.getString(name).substring(0, 5));
             }
             return result;
-        } catch (Exception error) {
+        } catch (Exception | LinkageError error) {
+            // LinkageError: a method missing on this Android version. Fall back to the saved times.
             return null;
         }
     }
@@ -69,5 +70,16 @@ final class PrayerTimesApi {
 
     private static String enc(String value) throws Exception {
         return URLEncoder.encode(value == null ? "" : value, "UTF-8");
+    }
+
+    /** Reads a whole response as UTF-8. Works on every Android version (readAllBytes needs Android 13). */
+    private static String readText(InputStream in) throws java.io.IOException {
+        java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+        byte[] buffer = new byte[4096];
+        int count;
+        while ((count = in.read(buffer)) != -1) {
+            out.write(buffer, 0, count);
+        }
+        return new String(out.toByteArray(), StandardCharsets.UTF_8);
     }
 }

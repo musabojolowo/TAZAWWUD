@@ -82,14 +82,6 @@ function loadCalendarModule() {
   return calendarModulePromise;
 }
 
-let adhkarModulePromise = null;
-function loadAdhkarModule() {
-  if (!adhkarModulePromise) {
-    adhkarModulePromise = import("/js/adhkar.js");
-  }
-  return adhkarModulePromise;
-}
-
 let homeModulePromise = null;
 function loadHomeModule() {
   if (!homeModulePromise) {
@@ -416,20 +408,31 @@ function renderContinueReadingBanner(bannerId = "continue-reading-banner") {
       <span class="material-symbols-rounded icon" aria-hidden="true">chevron_right</span>
     </button>
   `;
-  banner.querySelector(".continue-reading-btn").addEventListener("click", () => openSurah(Number(lastSurah)));
+  // Continue Reading goes to the verse last read, when it is known.
+  let lastRead = null;
+  try {
+    lastRead = JSON.parse(localStorage.getItem("tazawwud:recentReads") || "[]")[0] || null;
+  } catch {
+    lastRead = null;
+  }
+  banner.querySelector(".continue-reading-btn").addEventListener("click", () =>
+    lastRead && Number(lastRead.surah) === Number(lastSurah)
+      ? openSurah(Number(lastSurah), Number(lastRead.ayah))
+      : openSurah(Number(lastSurah))
+  );
 }
 
 /**
  * Opens the Mushaf (page-by-page) view for a single Surah — the default
  * reading experience. Called from the Surah list.
  */
-function openSurah(surahNumber) {
+function openSurah(surahNumber, ayahNumber) {
   showView("mushaf");
   history.pushState(null, "", `#quran/${surahNumber}`);
 
   const mushafRootEl = document.getElementById("mushaf-root");
   loadMushafModule()
-    .then(({ openSurahInMushaf }) => openSurahInMushaf(mushafRootEl, surahNumber))
+    .then(({ openSurahInMushaf }) => openSurahInMushaf(mushafRootEl, surahNumber, ayahNumber))
     .catch((error) => console.error("[TAZAWWUD] Failed to load Mushaf module:", error));
 }
 

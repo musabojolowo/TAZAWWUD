@@ -266,3 +266,13 @@ export async function getPushToken() {
     return null;
   }
 }
+
+/** Reads Arabic aloud on the phone. Resolves { available } inside the app, or null in a browser. */
+export async function speakArabicNative(text) {
+  if (!inNativeApp()) return null;
+  try {
+    return await plugin("PrayerBridge").speakArabic({ text: String(text || "") });
+  } catch {
+    return { available: false };
+  }
+}

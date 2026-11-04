@@ -22,7 +22,9 @@ const FEATURES = [
 ];
 
 const SOURCES = [
-  ["Qur’an text and translations", "AlQuran.cloud (api.alquran.cloud)."],
+  ["Qur’an text", "Arabic text from Tanzil (tanzil.net), licensed under Creative Commons Attribution 3.0. Juz, Hizb, Ruku and Page positions from Tanzil metadata, under the same licence."],
+  ["Qur’an translation", "English translation by Marmaduke Pickthall (1930), in the public domain."],
+  ["Surah list and tafsir", "AlQuran.cloud (api.alquran.cloud)."],
   ["Prayer times", "AlAdhan (aladhan.com)."],
   ["Hadith collections", "The open hadith API used by the app."],
   ["Hisn al-Muslim (Fortress of the Muslim)", "By Sa’id bin Ali bin Wahf al-Qahtani. Arabic text, transliteration and English translation from OpenDua (opendua.org), licensed under Creative Commons Attribution 4.0 (CC BY 4.0)."],

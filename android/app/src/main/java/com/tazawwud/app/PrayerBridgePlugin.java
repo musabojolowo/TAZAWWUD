@@ -163,4 +163,39 @@ public class PrayerBridgePlugin extends Plugin {
             call.resolve(new JSObject());
         }
     }
+
+    /**
+     * Reads Arabic text aloud with the phone's own text-to-speech (built into Android).
+     * Resolves { available: false } if the phone has no Arabic voice.
+     */
+    @PluginMethod
+    public void speakArabic(PluginCall call) {
+        final String text = call.getString("text", "");
+        if (text == null || text.trim().isEmpty()) {
+            JSObject none = new JSObject();
+            none.put("available", false);
+            call.resolve(none);
+            return;
+        }
+        final android.speech.tts.TextToSpeech[] engine = new android.speech.tts.TextToSpeech[1];
+        engine[0] = new android.speech.tts.TextToSpeech(getContext(), status -> {
+            JSObject result = new JSObject();
+            android.speech.tts.TextToSpeech tts = engine[0];
+            if (status != android.speech.tts.TextToSpeech.SUCCESS
+                    || tts.setLanguage(new java.util.Locale("ar")) < 0) {
+                result.put("available", false);
+                tts.shutdown();
+                call.resolve(result);
+                return;
+            }
+            tts.setOnUtteranceProgressListener(new android.speech.tts.UtteranceProgressListener() {
+                @Override public void onStart(String utteranceId) { }
+                @Override public void onDone(String utteranceId) { tts.shutdown(); }
+                @Override public void onError(String utteranceId) { tts.shutdown(); }
+            });
+            tts.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "tazawwud-dhikr");
+            result.put("available", true);
+            call.resolve(result);
+        });
+    }
 }

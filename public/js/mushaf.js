@@ -18,12 +18,14 @@ import {
   TRANSLATION_EDITIONS,
   fetchAyahTafsir,
   fetchSurahDetail,
+  loadLocalQuran,
 } from "./quran.js";
 import { toggleBookmark, getBookmarksForSurah } from "./bookmarks.js";
 import { ensureSignedIn } from "./auth.js";
 import { db } from "./firebase-config.js";
 import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 import { fetchJsonWithFallback, renderFallbackNotice } from "./error-boundary.js";
+import { openQuranSettings, applyQuranSettings } from "./quran-settings.js";
 import { escapeHtml } from "./html-utils.js";
 import { validateJump, pageForAyah, contentsEntries } from "./mushaf-jump.js";
 import { fetchSurahList } from "./quran.js";
@@ -50,6 +52,26 @@ function saveLastSurahLocally(surahNumber) {
   localStorage.setItem(LAST_SURAH_STORAGE_KEY, String(surahNumber));
 }
 
+// The recent reads shown under "Last Read" on the Quran front page (same key as quran.js reads).
+const RECENT_READS_KEY = "tazawwud:recentReads";
+
+function saveRecentRead(surahNumber, ayahNumber) {
+  let list = [];
+  try {
+    list = JSON.parse(localStorage.getItem(RECENT_READS_KEY) || "[]");
+    if (!Array.isArray(list)) list = [];
+  } catch {
+    list = [];
+  }
+  list = list.filter((r) => !(r && r.surah === surahNumber && r.ayah === ayahNumber));
+  list.unshift({ surah: surahNumber, ayah: ayahNumber });
+  try {
+    localStorage.setItem(RECENT_READS_KEY, JSON.stringify(list.slice(0, 4)));
+  } catch {
+    // storage full or blocked: Last Read simply does not update
+  }
+}
+
 function getLastSurahLocally() {
   const stored = localStorage.getItem(LAST_SURAH_STORAGE_KEY);
   return stored ? Number(stored) : null;
@@ -66,8 +88,9 @@ async function saveLastSurahRemote(surahNumber) {
 }
 
 /** Records progress WITHOUT blocking the UI — fire-and-forget by design. */
-function recordLastRead(surahNumber) {
+function recordLastRead(surahNumber, ayahNumber = 1) {
   saveLastSurahLocally(surahNumber);
+  saveRecentRead(surahNumber, ayahNumber);
   saveLastSurahRemote(surahNumber); // not awaited — never delays rendering
 }
 
@@ -128,6 +151,9 @@ function renderReadingTopBar(pageNumber, juzLabel) {
         Page ${pageNumber}${juzLabel ? `<span class="reading-topbar__juz"> · ${juzLabel}</span>` : ""}
       </span>
       <div class="reading-topbar__actions">
+        <button type="button" id="quran-settings-open" class="reading-nav-btn" aria-label="Reading settings">
+          <span class="material-symbols-rounded icon" aria-hidden="true">tune</span>
+        </button>
         <label class="select-pill select-pill--compact">
           <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">record_voice_over</span>
           <select id="reading-reciter-select">
@@ -152,44 +178,79 @@ function renderReadingTopBar(pageNumber, juzLabel) {
   `;
 }
 
+/** Compares two [sura, ayah] positions. */
+function comparePosition(a, b) {
+  return a[0] - b[0] || a[1] - b[1];
+}
+
+/** The Juz (1 to 30) that a [sura, ayah] position falls in, from the Tanzil Juz starts. */
+function juzNumberFor(juzStarts, sura, ayah) {
+  let best = 0;
+  for (let k = 0; k < juzStarts.length; k += 1) {
+    if (comparePosition(juzStarts[k], [sura, ayah]) <= 0) best = k;
+    else break;
+  }
+  return best + 1;
+}
+
+/**
+ * The ayahs of one Mushaf page, from the local Tanzil text. A page starts at its
+ * Tanzil start position and ends just before the next page's start.
+ */
+function pageVerses(pageNumber, uthmani, metadata) {
+  const start = metadata.page[pageNumber - 1];
+  const next = metadata.page[pageNumber] || null;
+  const out = [];
+  let global = 0;
+  for (let sura = 1; sura <= 114; sura += 1) {
+    const verses = uthmani.suras[String(sura)];
+    const numbers = Object.keys(verses).map(Number).sort((x, y) => x - y);
+    for (const ayah of numbers) {
+      global += 1;
+      const position = [sura, ayah];
+      if (comparePosition(position, start) < 0) continue;
+      if (next && comparePosition(position, next) >= 0) return out;
+      out.push({ sura, ayah, text: verses[String(ayah)], global, juz: juzNumberFor(metadata.juz, sura, ayah) });
+    }
+  }
+  return out;
+}
+
 export async function fetchPage(pageNumber, translationCode) {
   const cacheKey = `${pageNumber}:${translationCode}`;
   if (cachedPages.has(cacheKey)) return cachedPages.get(cacheKey);
 
-  const result = await fetchJsonWithFallback(`${API_BASE}/page/${pageNumber}/quran-uthmani`, {
-    cacheKey: `quran:page:${pageNumber}`,
-    persistent: true,
-    validate: (value) =>
-      value?.code === 200 &&
-      Array.isArray(value.data?.ayahs) &&
-      value.data.number === pageNumber,
-  });
-  const payload = result.data;
-
-  const surahNumbers = [...new Set(payload.data.ayahs.map((ayah) => ayah.surah.number))];
-  const details = await Promise.all(surahNumbers.map((number) => fetchSurahDetail(number, translationCode)));
+  // The page is built from the local Tanzil text and metadata, so it works offline.
+  const [uthmani, , metadata] = await loadLocalQuran();
+  const verses = pageVerses(pageNumber, uthmani, metadata);
+  const surahNumbers = [...new Set(verses.map((v) => v.sura))];
+  const [surahs, ...details] = await Promise.all([
+    fetchSurahList(),
+    ...surahNumbers.map((number) => fetchSurahDetail(number, translationCode)),
+  ]);
+  const surahByNumber = new Map(surahs.map((x) => [x.number, x]));
   const detailBySurah = new Map(details.map((detail) => [detail.number, detail]));
+
   const page = {
     number: pageNumber,
-    ayahs: payload.data.ayahs.map((ayah) => {
-      const detail = detailBySurah.get(ayah.surah.number);
-      const detailAyah = detail?.ayahs.find((item) => item.numberInSurah === ayah.numberInSurah);
+    ayahs: verses.map((v) => {
+      const detailAyah = detailBySurah.get(v.sura)?.ayahs.find((x) => x.numberInSurah === v.ayah);
       return {
-        ...ayah,
-        arabic: String(ayah.text).replace(
-          ayah.numberInSurah === 1 && !NO_BISMILLAH_BANNER.has(ayah.surah.number) ? BISMILLAH_PREFIX : /^$/,
-          ""
-        ),
+        number: v.global,
+        numberInSurah: v.ayah,
+        page: pageNumber,
+        juz: v.juz,
+        surah: surahByNumber.get(v.sura) || { number: v.sura, englishName: `Surah ${v.sura}` },
+        text: v.text,
+        arabic: detailAyah?.arabic ?? v.text,
         translation: detailAyah?.translation ?? "",
       };
     }),
     details: detailBySurah,
-    source: result.source,
+    // Local data is always current, so no "previously loaded copy" notice is needed.
+    source: "network",
   };
-  // Only cache clean network results — a cache/fallback result is already
-  // persisted by fetchJsonWithFallback itself, and re-caching it here under
-  // the in-memory key would mask a later successful network fetch this tab.
-  if (result.source === "network") cachedPages.set(cacheKey, page);
+  cachedPages.set(cacheKey, page);
   return page;
 }
 
@@ -681,6 +742,58 @@ export async function renderSurah(container, surahNumber, translationCode) {
   }
 }
 
+const MUSHAF_LAST_PAGE = 604;
+
+/** One page as a block in the continuous scroll, with its page number at the foot. */
+function pageBlockHtml(page) {
+  return `<section class="mushaf-block" data-page="${page.number}">
+    <div class="reading-card mushaf-page">
+      ${renderPageSegments(page)}
+      ${renderMushafFooter(page.number)}
+    </div>
+  </section>`;
+}
+
+/**
+ * Adds the following pages to the bottom of the scroll as the reader gets near the end.
+ * Pages come from the local Tanzil data, so this works offline.
+ */
+function observeContinuousPages(container, startPage) {
+  if (container._mushafObserver) container._mushafObserver.disconnect();
+  const sentinel = container.querySelector("[data-mushaf-sentinel]");
+  if (!sentinel || !("IntersectionObserver" in window)) return;
+  let loadedUpTo = startPage;
+  let busy = false;
+  const observer = new IntersectionObserver(
+    async (entries) => {
+      if (!entries[0]?.isIntersecting || busy) return;
+      if (loadedUpTo >= MUSHAF_LAST_PAGE) {
+        observer.disconnect();
+        return;
+      }
+      busy = true;
+      try {
+        const next = loadedUpTo + 1;
+        const page = await fetchPage(next, getCurrentTranslationCode());
+        const scroll = container.querySelector(".mushaf-scroll");
+        if (!scroll) return;
+        scroll.insertAdjacentHTML("beforeend", pageBlockHtml(page));
+        wireAyahTaps(scroll.lastElementChild.querySelector(".reading-card"), page);
+        const first = page.ayahs[0];
+        if (first) recordLastRead(first.surah.number, first.numberInSurah);
+        loadedUpTo = next;
+      } catch (error) {
+        console.error(`[TAZAWWUD] Could not add Mushaf page ${loadedUpTo + 1}:`, error);
+      } finally {
+        busy = false;
+      }
+    },
+    { rootMargin: "800px 0px" }
+  );
+  container._mushafObserver = observer;
+  observer.observe(sentinel);
+}
+
 async function renderPage(container, pageNumber) {
   if (!container) return;
 
@@ -700,10 +813,10 @@ async function renderPage(container, pageNumber) {
         <button type="submit" class="reading-goto__btn">Go</button>
         <p id="goto-message" class="reading-goto__message" role="status"></p>
       </form>
-      <div class="reading-card mushaf-page">
-        ${renderPageSegments(page)}
-        ${renderMushafFooter(page.number)}
+      <div class="mushaf-scroll">
+        ${pageBlockHtml(page)}
       </div>
+      <div class="mushaf-sentinel" data-mushaf-sentinel aria-hidden="true"></div>
       ${renderBottomToolbar()}
     `;
     container.setAttribute("aria-busy", "false");
@@ -718,8 +831,13 @@ async function renderPage(container, pageNumber) {
       renderFallbackNotice(container, "Showing a previously loaded copy of this page until the connection is back.");
     }
 
-    const cardEl = container.querySelector(".reading-card");
+    applyQuranSettings();
+    container.querySelector("#quran-settings-open")?.addEventListener("click", () =>
+      openQuranSettings({ translations: TRANSLATION_EDITIONS })
+    );
+    const cardEl = container.querySelector(".mushaf-block .reading-card");
     wireAyahTaps(cardEl, page);
+    observeContinuousPages(container, page.number);
     wireTopBarNav(container, page.number);
     wireGoto(container);
     wireContents(container);
@@ -730,7 +848,7 @@ async function renderPage(container, pageNumber) {
       ayahs: [],
     });
 
-    recordLastRead(page.ayahs[0]?.surah.number || 1);
+    recordLastRead(page.ayahs[0]?.surah.number || 1, page.ayahs[0]?.numberInSurah || 1);
   } catch (error) {
     console.error(`[TAZAWWUD] Failed to load Mushaf page ${pageNumber}:`, error);
     container.setAttribute("aria-busy", "false");
@@ -739,8 +857,24 @@ async function renderPage(container, pageNumber) {
 }
 
 /** Opens a specific Surah — a direct render, no lookup network call needed. */
-export function openSurahInMushaf(container, surahNumber) {
-  return renderSurah(container, surahNumber);
+export async function openSurahInMushaf(container, surahNumber, ayahNumber) {
+  if (!ayahNumber) return renderSurah(container, surahNumber);
+  return openAyahInMushaf(container, surahNumber, ayahNumber);
+}
+
+/** Opens the Mushaf on the page of an ayah, and scrolls to that ayah. */
+async function openAyahInMushaf(container, surahNumber, ayahNumber) {
+  try {
+    const detail = await fetchSurahDetail(surahNumber, getCurrentTranslationCode());
+    const pageNumber = pageForAyah(detail, ayahNumber);
+    if (!pageNumber) return renderSurah(container, surahNumber);
+    await renderPage(container, pageNumber);
+    const target = container.querySelector(`.reading-ayah[data-surah="${surahNumber}"][data-ayah="${ayahNumber}"]`);
+    target?.scrollIntoView({ block: "center" });
+  } catch (error) {
+    console.error(`[TAZAWWUD] Could not open ${surahNumber}:${ayahNumber}:`, error);
+    return renderSurah(container, surahNumber);
+  }
 }
 
 /** Resumes the last-read Surah (or Al-Fatihah if none recorded yet). */

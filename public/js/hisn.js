@@ -18,6 +18,7 @@
 // showing a partial or garbled result.
 // ============================================================================
 
+import { speakArabicNative } from "./native-bridge.js";
 import { fetchJsonWithFallback } from "./error-boundary.js";
 
 // Branch names are tried in order. The repository's default branch is not
@@ -263,9 +264,27 @@ function renderChapter(container, meta, book, chapter, onBack, filter) {
  * Reads the Arabic dua aloud with the phone's own Arabic voice. Free, and needs no recording.
  * If the phone has no Arabic voice, the button says so.
  */
-function speakArabic(text, button) {
-  if (!text || !("speechSynthesis" in window)) {
-    button.textContent = "Not available";
+async function speakArabic(text, button) {
+  const restore = () => { button.textContent = "Listen"; };
+  if (!text) {
+    button.textContent = "No text";
+    button.disabled = true;
+    return;
+  }
+  // In the app: the phone's own Arabic voice. In a browser: the browser's speech.
+  const native = await speakArabicNative(text);
+  if (native) {
+    if (!native.available) {
+      button.textContent = "No Arabic voice on this phone";
+      button.disabled = true;
+      return;
+    }
+    button.textContent = "Playing…";
+    setTimeout(restore, 4000);
+    return;
+  }
+  if (!("speechSynthesis" in window)) {
+    button.textContent = "Not supported here";
     button.disabled = true;
     return;
   }
@@ -274,8 +293,8 @@ function speakArabic(text, button) {
   utterance.lang = "ar-SA";
   utterance.rate = 0.85;
   button.textContent = "Playing…";
-  utterance.onend = () => { button.textContent = "Listen"; };
-  utterance.onerror = () => { button.textContent = "Listen"; };
+  utterance.onend = restore;
+  utterance.onerror = restore;
   window.speechSynthesis.speak(utterance);
 }
 

@@ -301,12 +301,10 @@ async function renderPanel() {
     </div>
 
     <div class="dl-group">
-      <details class="dl-picker">
-        <summary class="dl-label">Hadith collections</summary>
-        <div class="dl-row__actions">${hadithAllButtons(latest, h)}</div>
-        ${jobLine(latest.jobs["hadith:all"])}
-        <ul class="dl-list">${hadithRows}</ul>
-      </details>
+      <h4 class="dl-group__title">Hadith collections</h4>
+      <div class="dl-row__actions">${hadithAllButtons(latest, h)}</div>
+      ${jobLine(latest.jobs["hadith:all"])}
+      <ul class="dl-list">${hadithRows}</ul>
     </div>
 
     <div class="dl-group">

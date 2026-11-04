@@ -83,18 +83,17 @@ function buildSurahAudioUrl(reciter, surahNumber) {
 }
 
 /** Available translation editions the reader can switch between. */
+// Pickthall (1930) is in the public domain, so it is the only translation offered.
 const TRANSLATION_EDITIONS = [
-  { code: "en.asad", label: "English — Asad" },
-  { code: "en.sahih", label: "English — Saheeh International" },
   { code: "en.pickthall", label: "English — Pickthall" },
-  { code: "ur.jalandhry", label: "Urdu — Jalandhry" },
-  { code: "fr.hamidullah", label: "French — Hamidullah" },
-  { code: "id.indonesian", label: "Indonesian — Kemenag" },
 ];
 const TRANSLATION_STORAGE_KEY = "tazawwud:translation";
 
-let currentTranslationCode =
-  localStorage.getItem(TRANSLATION_STORAGE_KEY) || TRANSLATION_EDITIONS[0].code;
+// A translation saved before the list changed is no longer offered, so fall back to Pickthall.
+let currentTranslationCode = (() => {
+  const saved = localStorage.getItem(TRANSLATION_STORAGE_KEY);
+  return TRANSLATION_EDITIONS.some((e) => e.code === saved) ? saved : TRANSLATION_EDITIONS[0].code;
+})();
 
 /** In-memory caches so re-opening a tab/Surah/tafsir doesn't re-fetch. */
 let cachedSurahs = null;
@@ -125,6 +124,7 @@ export function setCurrentTranslationCode(code) {
 export { fetchAyahTafsir };
 export { playSurahToggle };
 export { fetchSurahDetail };
+export { loadLocalQuran };
 
 /** Returns the cached Surah list (null until the Surah List view has loaded once). */
 export function getCachedSurahList() {
@@ -179,36 +179,73 @@ export async function fetchSurahList() {
  * @param {number} number Surah number, 1-114
  * @param {string} translationCode e.g. "en.asad"
  */
+// Local Quran text: Tanzil Uthmani (Arabic), Pickthall (English), Tanzil metadata (Juz, Page).
+let localQuranPromise = null;
+function loadLocalQuran() {
+  if (!localQuranPromise) {
+    const get = (path) =>
+      fetch(path).then((r) => {
+        if (!r.ok) throw new Error(`Could not load ${path}`);
+        return r.json();
+      });
+    localQuranPromise = Promise.all([
+      get("/data/quran-uthmani.json"),
+      get("/data/quran-pickthall.json"),
+      get("/data/quran-metadata.json"),
+    ]).catch((error) => {
+      localQuranPromise = null; // try again next time
+      throw error;
+    });
+  }
+  return localQuranPromise;
+}
+
+// The last entry in a list of [sura, ayah] starts that is at or before (sura, ayah).
+function startIndexFor(starts, sura, ayah) {
+  let best = 0;
+  for (let k = 0; k < starts.length; k += 1) {
+    const [s, a] = starts[k];
+    if (s < sura || (s === sura && a <= ayah)) best = k;
+    else break;
+  }
+  return best + 1; // lists are 1-based (page 1, juz 1)
+}
+
 async function fetchSurahDetail(number, translationCode) {
   const cacheKey = `${number}:${translationCode}`;
   if (cachedSurahDetails.has(cacheKey)) {
     return cachedSurahDetails.get(cacheKey);
   }
 
-  const editions = `quran-uthmani,${translationCode}`;
-  const result = await fetchJsonWithFallback(`${API_BASE}/surah/${number}/editions/${editions}`, {
-    cacheKey: `quran:surah:${number}:${translationCode}`,
-    persistent: true,
-    validate: (payload) => payload?.code === 200 && Array.isArray(payload.data) && payload.data.length === 2,
-  });
-  const payload = result.data;
+  const [uthmani, pickthall, metadata] = await loadLocalQuran();
+  const verses = uthmani.suras[String(number)];
+  if (!verses) throw new Error(`Surah ${number} is not in the local Quran text.`);
 
-  const [arabicEdition, translationEdition] = payload.data;
+  // Surah names and counts come from the surah list the reader already uses.
+  const surahs = await fetchSurahList();
+  const info = surahs.find((x) => x.number === number) || {};
+
+  // Global ayah number: all ayahs in the surahs before this one, plus this ayah's number.
+  let before = 0;
+  for (let n = 1; n < number; n += 1) before += Object.keys(uthmani.suras[String(n)]).length;
+
+  const translations = pickthall.suras[String(number)] || {};
+  const ayahNumbers = Object.keys(verses).map(Number).sort((a, b) => a - b);
 
   const detail = {
-    number: arabicEdition.number,
-    name: arabicEdition.name,
-    englishName: arabicEdition.englishName,
-    englishNameTranslation: arabicEdition.englishNameTranslation,
-    revelationType: arabicEdition.revelationType,
-    numberOfAyahs: arabicEdition.numberOfAyahs,
-    ayahs: arabicEdition.ayahs.map((ayah, i) => ({
-      numberInSurah: ayah.numberInSurah,
-      globalNumber: ayah.number,
-      page: ayah.page,
-      juz: ayah.juz,
-      arabic: normalizeAyahText(ayah.text, number, ayah.numberInSurah),
-      translation: translationEdition.ayahs[i]?.text ?? "",
+    number,
+    name: info.name || "",
+    englishName: info.englishName || "",
+    englishNameTranslation: info.englishNameTranslation || "",
+    revelationType: info.revelationType || "",
+    numberOfAyahs: ayahNumbers.length,
+    ayahs: ayahNumbers.map((a) => ({
+      numberInSurah: a,
+      globalNumber: before + a,
+      page: startIndexFor(metadata.page, number, a),
+      juz: startIndexFor(metadata.juz, number, a),
+      arabic: normalizeAyahText(verses[String(a)], number, a),
+      translation: translations[String(a)] ?? "",
     })),
   };
 
@@ -322,6 +359,149 @@ function initSurahSearch(listContainer) {
   });
 }
 
+// ----------------------------------------------------------------------------
+// Front page strip: Last Read and Quick Links (as in the reference design)
+// ----------------------------------------------------------------------------
+
+const RECENT_READS_KEY = "tazawwud:recentReads";
+const QUICK_LINKS = [
+  { label: "Al-Mulk", surah: 67 },
+  { label: "Al-Kahf", surah: 18 },
+  { label: "Ayatul Kursi", surah: 2, ayah: 255 },
+  { label: "Ya Sin", surah: 36 },
+  { label: "Ar-Rahman", surah: 55 },
+];
+
+const escapeChip = (text) =>
+  String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/** The most recent reads, newest first, up to four. */
+export function readRecentReads() {
+  try {
+    const list = JSON.parse(localStorage.getItem(RECENT_READS_KEY) || "[]");
+    return Array.isArray(list) ? list.filter((r) => r && r.surah && r.ayah).slice(0, 4) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Records a read position, so it shows under Last Read. */
+export function saveRecentRead(surah, ayah) {
+  const list = readRecentReads().filter((r) => !(r.surah === surah && r.ayah === ayah));
+  list.unshift({ surah, ayah });
+  try {
+    localStorage.setItem(RECENT_READS_KEY, JSON.stringify(list.slice(0, 4)));
+  } catch {
+    // storage full or blocked: the strip simply does not update
+  }
+}
+
+import { openQuranSettings, applyQuranSettings, readQuranSettings } from "./quran-settings.js";
+
+const BROWSE_MODES = [
+  { id: "surah", label: "Surah" },
+  { id: "page", label: "Page" },
+  { id: "juz", label: "Juz" },
+  { id: "hizb", label: "Hizb" },
+  { id: "ruku", label: "Ruku" },
+];
+
+const HIZB_QUARTER_MARKS = ["", " · ¼", " · ½", " · ¾"];
+
+/** Fills the browse panel with the list for one mode. Each item opens its surah. */
+async function renderBrowsePanel(panel, mode) {
+  panel.innerHTML = `<p class="quran-home-strip__empty">Loading…</p>`;
+  const [, , metadata] = await loadLocalQuran();
+  const surahs = await fetchSurahList();
+  const nameOf = (n) => surahs.find((x) => x.number === n)?.englishName || `Surah ${n}`;
+  const detailOf = ([s, a]) => `${nameOf(s)} ${s}:${a}`;
+
+  let items;
+  if (mode === "page") {
+    items = metadata.page.map((start, i) => ({ label: `Page ${i + 1}`, start }));
+  } else if (mode === "juz") {
+    items = metadata.juz.map((start, i) => ({ label: `Juz ${i + 1}`, start }));
+  } else if (mode === "hizb") {
+    items = metadata.hizbQuarter.map((start, i) => ({
+      label: `Hizb ${Math.floor(i / 4) + 1}${HIZB_QUARTER_MARKS[i % 4]}`,
+      start,
+    }));
+  } else {
+    items = metadata.ruku.map((start, i) => ({ label: `Ruku ${i + 1}`, start }));
+  }
+
+  panel.innerHTML = `<ul class="quran-browse-list">${items
+    .map((it) => `<li><button type="button" class="quran-browse-item" data-open-surah="${it.start[0]}" data-ayah="${it.start[1]}"><span>${escapeChip(it.label)}</span><span>${escapeChip(detailOf(it.start))}</span></button></li>`)
+    .join("")}</ul>`;
+}
+
+function ensureQuranHomeStrip(container, onOpenSurah) {
+  if (!container || !container.parentElement) return;
+  if (container.parentElement.querySelector(".quran-home-strip")) return;
+
+  const strip = document.createElement("section");
+  strip.className = "quran-home-strip";
+  strip.setAttribute("aria-label", "Last read and quick links");
+  strip.innerHTML = `
+    <h3 class="quran-home-strip__title">Last Read</h3>
+    <div class="quran-home-strip__row" data-last-read></div>
+    <h3 class="quran-home-strip__title">Quick Links</h3>
+    <div class="quran-home-strip__row" data-quick-links>
+      ${QUICK_LINKS.map((q) => `<button type="button" class="quran-chip" data-open-surah="${q.surah}"${q.ayah ? ` data-ayah="${q.ayah}"` : ""}>${escapeChip(q.label)}</button>`).join("")}
+    </div>
+    <div class="quran-browse-tabs" role="tablist" aria-label="Browse the Quran">
+      ${BROWSE_MODES.map((m) => `<button type="button" role="tab" class="quran-chip" data-browse="${m.id}" aria-selected="${m.id === "surah"}">${m.label}</button>`).join("")}
+      <button type="button" class="quran-chip" data-quran-settings>Settings</button>
+    </div>
+    <div class="quran-browse-panel" data-browse-panel hidden></div>`;
+  container.parentElement.insertBefore(strip, container);
+
+  const panel = strip.querySelector("[data-browse-panel]");
+  strip.addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-open-surah]");
+    if (chip && typeof onOpenSurah === "function") {
+      const ayah = Number(chip.dataset.ayah) || undefined;
+      onOpenSurah(Number(chip.dataset.openSurah), ayah);
+    }
+
+    if (event.target.closest("[data-quran-settings]")) {
+      openQuranSettings({ translations: TRANSLATION_EDITIONS });
+      return;
+    }
+    const tab = event.target.closest("[data-browse]");
+    if (!tab) return;
+    const mode = tab.dataset.browse;
+    strip.querySelectorAll("[data-browse]").forEach((b) => b.setAttribute("aria-selected", String(b === tab)));
+    if (mode === "surah") {
+      container.hidden = false;
+      panel.hidden = true;
+      return;
+    }
+    container.hidden = true;
+    panel.hidden = false;
+    renderBrowsePanel(panel, mode).catch(() => {
+      panel.innerHTML = `<p class="quran-home-strip__empty">Could not load this list. Check your connection and try again.</p>`;
+    });
+  });
+
+  // Apply the saved settings, and open the view the reader chose.
+  applyQuranSettings();
+  const chosenView = readQuranSettings().view;
+  if (chosenView !== "surah") strip.querySelector(`[data-browse="${chosenView}"]`)?.click();
+
+  fetchSurahList()
+    .then((surahs) => {
+      const nameOf = (n) => surahs.find((x) => x.number === n)?.englishName || `Surah ${n}`;
+      const reads = readRecentReads();
+      strip.querySelector("[data-last-read]").innerHTML = reads.length
+        ? reads.map((r) => `<button type="button" class="quran-chip" data-open-surah="${r.surah}" data-ayah="${r.ayah}">${escapeChip(nameOf(r.surah).toUpperCase())} ${r.surah}:${r.ayah}</button>`).join("")
+        : `<p class="quran-home-strip__empty">Nothing read yet.</p>`;
+    })
+    .catch(() => {
+      // The strip still shows Quick Links if the surah names cannot be loaded.
+    });
+}
+
 /**
  * Public entry point: mounts the Surah list into the given container.
  * @param {HTMLElement} container the <ul id="surah-list">
@@ -332,6 +512,7 @@ export async function initSurahList(container, onOpenSurah) {
 
   container.setAttribute("aria-busy", "true");
   container.innerHTML = renderSkeletonCards();
+  ensureQuranHomeStrip(container, onOpenSurah);
 
   try {
     const surahs = await fetchSurahList();

@@ -18,7 +18,7 @@ final class PrayerScheduler {
     private static final int DAYS = 7;
     /** Prayer alarms use request codes 0..34. */
     private static final int REMINDER_BASE = 40;
-    /** Reminders use 4 codes per day: Qur'an, morning Adhkar, evening Adhkar, Friday. */
+    /** Reminders use 4 codes per day: Qur'an, morning Adhkar, evening Adhkar, Friday. Adhkar codes are no longer used. */
     private static final int SUN_BASE = 100;
     /** Sunrise and Sunset use 2 codes per day, from SUN_BASE. */
     // Covers the prayer, Adhkar and admin reminder codes, so the refresh clears them all.
@@ -98,21 +98,6 @@ final class PrayerScheduler {
             long at = clockOn(day, quran.optString("time", ""));
             if (at >= 0) scheduleOne(app, base, at, null,
                 "Qur'an reading - TAZAWWUD", "Time for your daily Qur'an reading.", "tazawwud-quran", null);
-        }
-
-        JSONObject adhkar = settings.optJSONObject("adhkar");
-        if (adhkar != null && times != null) {
-            long delay = adhkar.optInt("minutesAfterPrayer", 15) * MINUTE;
-            if (adhkar.optBoolean("morningEnabled", false)) {
-                long fajr = clockOn(day, times.optString("Fajr", ""));
-                if (fajr >= 0) scheduleOne(app, base + 1, fajr + delay, null,
-                    "Morning Adhkar - TAZAWWUD", "Time for your morning remembrance.", "tazawwud-adhkar-morning", null);
-            }
-            if (adhkar.optBoolean("eveningEnabled", false)) {
-                long asr = clockOn(day, times.optString("Asr", ""));
-                if (asr >= 0) scheduleOne(app, base + 2, asr + delay, null,
-                    "Evening Adhkar - TAZAWWUD", "Time for your evening remembrance.", "tazawwud-adhkar-evening", null);
-            }
         }
 
         // Friday: one hour before Jumu'ah, on Fridays only, once a Jumu'ah time is set.

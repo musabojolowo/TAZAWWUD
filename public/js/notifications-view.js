@@ -27,11 +27,6 @@ export function initNotifications(root) {
   ensureStylesheet();
   root.innerHTML = renderMarkup();
   showAlarmWarning(root);
-  const target = sessionStorage.getItem("tazawwud:scroll-to");
-  if (target) {
-    sessionStorage.removeItem("tazawwud:scroll-to");
-    requestAnimationFrame(() => root.querySelector(`#${target}`)?.scrollIntoView({ block: "start" }));
-  }
 
   const notificationManager = getNotificationManager();
   const notificationToggle = root.querySelector("[data-salah-notifications]");
@@ -167,8 +162,8 @@ function renderMarkup() {
           </div>
         </section>
 
-        <h2 class="nt-group">Adhkar Settings</h2>
-        <section class="nt-section" aria-labelledby="nt-adhkar-heading">
+        <h2 class="nt-group" hidden>Adhkar Settings</h2>
+        <section class="nt-section" aria-labelledby="nt-adhkar-heading" hidden>
           <h3 class="nt-section__title" id="nt-adhkar-heading">Morning & evening Adhkar</h3>
           <div class="nt-card">
             <div class="nt-row">
