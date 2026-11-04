@@ -35,7 +35,7 @@ const PAGE_COUNT = 604;
 const NO_BISMILLAH_BANNER = new Set([1, 9]); // Al-Fatihah's Bismillah IS ayah 1; At-Tawbah has none
 const BISMILLAH_TEXT = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
 const LAST_SURAH_STORAGE_KEY = "tazawwud:lastReadSurah";
-const BISMILLAH_PREFIX = /^\uFEFF?بِسْمِ\s+ٱ?للَّهِ\s+ٱ?لرَّحْمَٰنِ\s+ٱ?لرَّحِيمِ\s*/;
+const BISMILLAH_PREFIX = /^بِسْمِ(?:\s+\S+){3}\s*/;
 
 const cachedPages = new Map();
 
@@ -141,35 +141,21 @@ function toArabicDigits(n) {
 }
 
 /** Top bar: prev/next page nav, page number + Juz (from the ayah data itself — never invented), reciter/translation pickers. */
-function renderReadingTopBar(pageNumber, juzLabel) {
+function renderReadingTopBar(pageNumber, juzLabel, surahLabel = "") {
   return `
     <div class="reading-topbar">
       <button type="button" id="prev-page-btn" class="reading-nav-btn" aria-label="Previous page" ${pageNumber <= 1 ? "disabled" : ""}>
         <span class="material-symbols-rounded icon" aria-hidden="true">chevron_left</span>
       </button>
-      <span class="reading-topbar__title">
-        Page ${pageNumber}${juzLabel ? `<span class="reading-topbar__juz"> · ${juzLabel}</span>` : ""}
-      </span>
+      <button type="button" id="surah-picker-open" class="reading-surah-picker" aria-haspopup="dialog">
+        <span class="reading-surah-picker__name">${escapeHtml(surahLabel || "Quran")}</span>
+        <span class="reading-surah-picker__meta">Page ${pageNumber}${juzLabel ? ` · ${juzLabel}` : ""}</span>
+        <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">arrow_drop_down</span>
+      </button>
       <div class="reading-topbar__actions">
         <button type="button" id="quran-settings-open" class="reading-nav-btn" aria-label="Reading settings">
           <span class="material-symbols-rounded icon" aria-hidden="true">tune</span>
         </button>
-        <label class="select-pill select-pill--compact">
-          <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">record_voice_over</span>
-          <select id="reading-reciter-select">
-            ${RECITERS.map(
-              (r) => `<option value="${r.id}" ${r.id === getCurrentReciterId() ? "selected" : ""}>${r.label}</option>`
-            ).join("")}
-          </select>
-        </label>
-        <label class="select-pill select-pill--compact">
-          <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">translate</span>
-          <select id="reading-translation-select">
-            ${TRANSLATION_EDITIONS.map(
-              (t) => `<option value="${t.code}" ${t.code === getCurrentTranslationCode() ? "selected" : ""}>${t.label}</option>`
-            ).join("")}
-          </select>
-        </label>
       </div>
       <button type="button" id="next-page-btn" class="reading-nav-btn" aria-label="Next page" ${pageNumber >= PAGE_COUNT ? "disabled" : ""}>
         <span class="material-symbols-rounded icon" aria-hidden="true">chevron_right</span>
@@ -352,10 +338,6 @@ function renderAyahDetailPanel(ayahNumber, translationText) {
 function renderBottomToolbar() {
   return `
     <div class="reading-bottom-toolbar">
-      <button type="button" id="reading-contents-btn" class="reading-toolbar-btn">
-        <span class="material-symbols-rounded icon" aria-hidden="true">menu_book</span>
-        <span class="reading-toolbar-btn__label">Contents</span>
-      </button>
       <button type="button" id="reading-play-btn" class="reading-toolbar-btn">
         <span class="material-symbols-rounded icon" aria-hidden="true">play_arrow</span>
         <span class="reading-toolbar-btn__label">Play</span>
@@ -498,7 +480,6 @@ function wirePlayButton(container, surahNumber) {
     if (isThisPlaying) {
       audioEl.pause();
       setState("play_arrow", "Play");
-      stopAutoScroll();
       return;
     }
 
@@ -510,18 +491,15 @@ function wirePlayButton(container, surahNumber) {
     const onPlaying = () => {
       if (myToken !== playbackToken) return;
       setState("pause", "Playing…");
-      if (autoScrollActive) startAutoScroll(container, audioEl);
     };
     const onEnded = () => {
       if (myToken !== playbackToken) return;
       setState("play_arrow", "Play");
-      stopAutoScroll();
     };
     const onError = () => {
       if (myToken !== playbackToken) return;
       console.error("[TAZAWWUD] Surah audio failed to load:", url);
       setState("error", "Unavailable");
-      stopAutoScroll();
     };
 
     audioEl.addEventListener("playing", onPlaying, { once: true });
@@ -544,23 +522,31 @@ function wirePlayButton(container, surahNumber) {
  * reader has scrolled through the whole Surah. Approximate, not
  * word-accurate — flagged here rather than implied to be more than it is.
  */
-function startAutoScroll(container, audioEl) {
-  const scrollEl = container.querySelector(".reading-card");
-  if (!scrollEl || !audioEl.duration) return;
+const AUTO_SCROLL_PX_PER_SECOND = 40;
+let autoScrollLastTime = null;
 
-  function step() {
-    if (audioEl.paused || audioEl.ended) {
+/** Scrolls the page slowly down, on its own, until the end of the page or until it is switched off. */
+function startAutoScroll() {
+  stopAutoScroll();
+  autoScrollLastTime = null;
+  const step = (time) => {
+    if (!autoScrollActive) {
       autoScrollRAF = null;
       return;
     }
-    const progress = audioEl.currentTime / audioEl.duration;
-    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-    const cardTop = scrollEl.getBoundingClientRect().top + window.scrollY;
-    const cardHeight = scrollEl.offsetHeight;
-    const targetScroll = Math.min(cardTop + cardHeight * progress - 200, maxScroll);
-    window.scrollTo({ top: Math.max(targetScroll, 0), behavior: "auto" });
+    if (autoScrollLastTime !== null) {
+      window.scrollBy(0, (AUTO_SCROLL_PX_PER_SECOND * (time - autoScrollLastTime)) / 1000);
+    }
+    autoScrollLastTime = time;
+    const atEnd = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+    if (atEnd) {
+      autoScrollActive = false;
+      document.querySelector("#autoscroll-btn")?.classList.remove("is-active");
+      autoScrollRAF = null;
+      return;
+    }
     autoScrollRAF = requestAnimationFrame(step);
-  }
+  };
   autoScrollRAF = requestAnimationFrame(step);
 }
 
@@ -579,7 +565,8 @@ function wireAutoScrollAndRepeat(container) {
   autoScrollBtn?.addEventListener("click", () => {
     autoScrollActive = !autoScrollActive;
     autoScrollBtn.classList.toggle("is-active", autoScrollActive);
-    if (!autoScrollActive) stopAutoScroll();
+    if (autoScrollActive) startAutoScroll();
+    else stopAutoScroll();
   });
 
   repeatBtn?.addEventListener("click", () => {
@@ -628,7 +615,6 @@ function wireGoto(container) {
 
 /** Contents: a panel listing every Surah. Tapping one opens its verse view. */
 function wireContents(container) {
-  container.querySelector("#reading-contents-btn")?.addEventListener("click", () => openContents(container));
 }
 
 async function openContents(container) {
@@ -690,13 +676,6 @@ function wireTopBarNav(container, pageNumber) {
   });
   container.querySelector("#next-page-btn")?.addEventListener("click", () => {
     if (pageNumber < PAGE_COUNT) renderPage(container, pageNumber + 1);
-  });
-  container.querySelector("#reading-reciter-select")?.addEventListener("change", (e) => {
-    setCurrentReciterId(e.target.value);
-  });
-  container.querySelector("#reading-translation-select")?.addEventListener("change", (e) => {
-    setCurrentTranslationCode(e.target.value);
-    renderPage(container, pageNumber);
   });
 }
 
@@ -806,7 +785,7 @@ async function renderPage(container, pageNumber) {
     const page = await fetchPage(pageNumber, getCurrentTranslationCode());
 
     container.innerHTML = `
-      ${renderReadingTopBar(page.number, juzLabelForPage(page))}
+      ${renderReadingTopBar(page.number, juzLabelForPage(page), surahLabelForPage(page))}
       <form id="reading-goto-form" class="reading-goto" autocomplete="off">
         <label>Surah <input id="goto-surah" type="number" min="1" max="114" inputmode="numeric" required /></label>
         <label>Ayah <input id="goto-ayah" type="number" min="1" inputmode="numeric" required /></label>
@@ -832,8 +811,19 @@ async function renderPage(container, pageNumber) {
     }
 
     applyQuranSettings();
+    container.querySelector("#surah-picker-open")?.addEventListener("click", () => openSurahPicker(container, page.number));
     container.querySelector("#quran-settings-open")?.addEventListener("click", () =>
-      openQuranSettings({ translations: TRANSLATION_EDITIONS })
+      openQuranSettings({
+        translations: TRANSLATION_EDITIONS,
+        reciters: RECITERS,
+        currentTranslation: getCurrentTranslationCode(),
+        currentReciter: getCurrentReciterId(),
+        onTranslationChange: (code) => {
+          setCurrentTranslationCode(code);
+          renderPage(container, page.number);
+        },
+        onReciterChange: (id) => setCurrentReciterId(id),
+      })
     );
     const cardEl = container.querySelector(".mushaf-block .reading-card");
     wireAyahTaps(cardEl, page);
@@ -860,6 +850,61 @@ async function renderPage(container, pageNumber) {
 export async function openSurahInMushaf(container, surahNumber, ayahNumber) {
   if (!ayahNumber) return renderSurah(container, surahNumber);
   return openAyahInMushaf(container, surahNumber, ayahNumber);
+}
+
+/** "4. An-Nisaa'" for the surah at the top of the page. */
+function surahLabelForPage(page) {
+  const first = page.ayahs[0];
+  if (!first) return "";
+  return `${first.surah.number}. ${first.surah.englishName || ""}`.trim();
+}
+
+/**
+ * The Surah / Ayah / Page picker, opened from the dropdown in the header.
+ * "Go to surah" opens the surah at the chosen ayah; "Go to page" opens that page.
+ */
+async function openSurahPicker(container, currentPage) {
+  if (document.querySelector(".quran-sheet-overlay")) return;
+  const surahs = await fetchSurahList();
+  const overlay = document.createElement("div");
+  overlay.className = "quran-sheet-overlay";
+  overlay.innerHTML = `
+    <div class="quran-sheet quran-picker" role="dialog" aria-modal="true" aria-label="Go to a surah, ayah or page">
+      <div class="quran-sheet__head"><h2>Go to</h2><button type="button" class="quran-chip" data-picker-close>Close</button></div>
+      <div class="quran-picker__row">
+        <label>Surah<select data-picker="surah">${surahs.map((s) => `<option value="${s.number}">${s.number}. ${escapeHtml(s.englishName)}</option>`).join("")}</select></label>
+        <label>Ayah<select data-picker="ayah"></select></label>
+        <label>Page<select data-picker="page">${Array.from({ length: PAGE_COUNT }, (_, i) => `<option value="${i + 1}" ${i + 1 === currentPage ? "selected" : ""}>${i + 1}</option>`).join("")}</select></label>
+      </div>
+      <div class="quran-picker__actions">
+        <button type="button" class="quran-chip" data-picker-page>Go to page</button>
+        <button type="button" class="quran-chip quran-chip--primary" data-picker-surah>Go to surah</button>
+      </div>
+    </div>`;
+  document.body.append(overlay);
+  const surahSelect = overlay.querySelector('[data-picker="surah"]');
+  const ayahSelect = overlay.querySelector('[data-picker="ayah"]');
+  const fillAyahs = () => {
+    const surah = surahs.find((x) => String(x.number) === surahSelect.value);
+    const count = surah?.numberOfAyahs || 1;
+    ayahSelect.innerHTML = Array.from({ length: count }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+  };
+  fillAyahs();
+  surahSelect.addEventListener("change", fillAyahs);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay || event.target.closest("[data-picker-close]")) {
+      overlay.remove();
+      return;
+    }
+    if (event.target.closest("[data-picker-surah]")) {
+      overlay.remove();
+      openAyahInMushaf(container, Number(surahSelect.value), Number(ayahSelect.value));
+    }
+    if (event.target.closest("[data-picker-page]")) {
+      overlay.remove();
+      renderPage(container, Number(overlay.querySelector('[data-picker="page"]').value));
+    }
+  });
 }
 
 /** Opens the Mushaf on the page of an ayah, and scrolls to that ayah. */

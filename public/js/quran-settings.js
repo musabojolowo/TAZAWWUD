@@ -76,9 +76,11 @@ export function applyQuranSettings() {
  * Opens the settings sheet. `translations` is the list of translation editions
  * offered (passed in so this module does not import the reader).
  */
-export function openQuranSettings({ translations = [] } = {}) {
+export function openQuranSettings(options = {}) {
+  const { translations = [], reciters = [], currentTranslation, currentReciter, onTranslationChange, onReciterChange } = options;
   if (document.querySelector(".quran-sheet-overlay")) return;
   const s = readQuranSettings();
+  const translationValue = currentTranslation || translations[0]?.code;
   const overlay = document.createElement("div");
   overlay.className = "quran-sheet-overlay";
   overlay.innerHTML = `
@@ -103,9 +105,16 @@ export function openQuranSettings({ translations = [] } = {}) {
       </fieldset>
 
       <fieldset class="quran-sheet__group">
+        <legend>Reciter</legend>
+        <select data-setting="reciter" aria-label="Reciter">
+          ${reciters.map((r) => `<option value="${r.id}" ${r.id === currentReciter ? "selected" : ""}>${r.label}</option>`).join("")}
+        </select>
+      </fieldset>
+
+      <fieldset class="quran-sheet__group">
         <legend>Translation</legend>
         <select data-setting="translation" aria-label="Translation">
-          ${translations.map((t) => `<option value="${t.code}" ${t.code === s.translation || (!s.translation && translations[0]?.code === t.code) ? "selected" : ""}>${t.label}</option>`).join("")}
+          ${translations.map((t) => `<option value="${t.code}" ${t.code === translationValue ? "selected" : ""}>${t.label}</option>`).join("")}
         </select>
       </fieldset>
 
@@ -125,6 +134,14 @@ export function openQuranSettings({ translations = [] } = {}) {
   overlay.addEventListener("change", (event) => {
     const el = event.target;
     if (el.name === "quran-view") saveQuranSetting("view", el.value);
+    if (el.dataset.setting === "translation") {
+      if (onTranslationChange) onTranslationChange(el.value);
+      return;
+    }
+    if (el.dataset.setting === "reciter") {
+      if (onReciterChange) onReciterChange(el.value);
+      return;
+    }
     if (el.dataset.setting) {
       const key = el.dataset.setting;
       if (el.type === "checkbox") saveQuranSetting(key, el.checked);

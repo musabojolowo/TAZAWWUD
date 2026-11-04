@@ -133,7 +133,7 @@ export function getCachedSurahList() {
 
 /** Surahs recited WITHOUT an opening Bismillah banner (see explanation below). */
 const NO_BISMILLAH_BANNER = new Set([1, 9]);
-const BISMILLAH_PREFIX = /^\uFEFF?بِسْمِ\s+ٱ?للَّهِ\s+ٱ?لرَّحْمَٰنِ\s+ٱ?لرَّحِيمِ\s*/;
+const BISMILLAH_PREFIX = /^بِسْمِ(?:\s+\S+){3}\s*/;
 
 function normalizeAyahText(text, surahNumber, numberInSurah) {
   if (numberInSurah !== 1 || NO_BISMILLAH_BANNER.has(surahNumber)) return text;
@@ -465,7 +465,14 @@ function ensureQuranHomeStrip(container, onOpenSurah) {
     }
 
     if (event.target.closest("[data-quran-settings]")) {
-      openQuranSettings({ translations: TRANSLATION_EDITIONS });
+      openQuranSettings({
+        translations: TRANSLATION_EDITIONS,
+        reciters: RECITERS,
+        currentTranslation: getCurrentTranslationCode(),
+        currentReciter: getCurrentReciterId(),
+        onTranslationChange: setCurrentTranslationCode,
+        onReciterChange: setCurrentReciterId,
+      });
       return;
     }
     const tab = event.target.closest("[data-browse]");
