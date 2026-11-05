@@ -1,5 +1,8 @@
 package com.tazawwud.app;
 
+import org.json.JSONObject;
+import android.content.SharedPreferences;
+import android.content.Context;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -197,5 +200,16 @@ public class PrayerBridgePlugin extends Plugin {
             result.put("available", true);
             call.resolve(result);
         });
+    }
+
+    /** Returns the reminder tapped in a notification (once), or null. */
+    @PluginMethod
+    public void getPendingAction(PluginCall call) {
+        SharedPreferences prefs = getContext().getSharedPreferences(MainActivity.PENDING_PREFS, Context.MODE_PRIVATE);
+        String action = prefs.getString(MainActivity.PENDING_KEY, null);
+        prefs.edit().remove(MainActivity.PENDING_KEY).apply();
+        JSObject result = new JSObject();
+        result.put("action", action == null ? JSONObject.NULL : action);
+        call.resolve(result);
     }
 }

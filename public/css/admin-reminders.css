@@ -24,3 +24,16 @@
 .admin-reminders__item { display: grid; gap: 8px; }
 .admin-reminders__item.is-paused { opacity: 0.6; }
 .admin-reminders__history li { font-size: 13px; color: var(--color-text-muted, #b9d9d0); }
+
+/* Scheduler: one row per day, with a verse block and a hadith block. */
+.admin-schedule__days { display: grid; gap: 10px; margin-top: 12px; }
+.admin-schedule__day { border: 1px solid var(--color-border, rgba(255,255,255,0.12)); border-radius: 12px; padding: 10px 12px; }
+.admin-schedule__day summary { cursor: pointer; font-size: 15px; }
+.admin-schedule__block { border: 0; margin: 10px 0 0; padding: 0; display: grid; gap: 8px; }
+.admin-schedule__block legend { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-accent, #f6d58b); margin-bottom: 4px; }
+.admin-schedule__block label { display: grid; gap: 4px; font-size: 13px; color: var(--color-text-muted, #b9d9d0); }
+.admin-schedule__block select, .admin-schedule__block input, .admin-schedule__block textarea {
+  width: 100%; min-height: 40px; padding: 6px 10px; border-radius: 10px; box-sizing: border-box; font: inherit;
+  border: 1px solid var(--color-border, rgba(255,255,255,0.16)); background: var(--color-bg, #0b1a15); color: var(--color-text, #e8f3ef);
+}
+

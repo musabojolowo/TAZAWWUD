@@ -418,7 +418,7 @@ async function renderBrowsePanel(panel, mode) {
 
   let items;
   if (mode === "page") {
-    items = metadata.page.map((start, i) => ({ label: `Page ${i + 1}`, start }));
+    items = metadata.page.map((start, i) => ({ label: `Page ${i + 1}`, start, page: i + 1 }));
   } else if (mode === "juz") {
     items = metadata.juz.map((start, i) => ({ label: `Juz ${i + 1}`, start }));
   } else if (mode === "hizb") {
@@ -431,7 +431,9 @@ async function renderBrowsePanel(panel, mode) {
   }
 
   panel.innerHTML = `<ul class="quran-browse-list">${items
-    .map((it) => `<li><button type="button" class="quran-browse-item" data-open-surah="${it.start[0]}" data-ayah="${it.start[1]}"><span>${escapeChip(it.label)}</span><span>${escapeChip(detailOf(it.start))}</span></button></li>`)
+    .map((it) => it.page
+      ? `<li><button type="button" class="quran-browse-item" data-page="${it.page}"><span>${escapeChip(it.label)}</span><span>${escapeChip(detailOf(it.start))}</span></button></li>`
+      : `<li><button type="button" class="quran-browse-item" data-open-surah="${it.start[0]}" data-ayah="${it.start[1]}"><span>${escapeChip(it.label)}</span><span>${escapeChip(detailOf(it.start))}</span></button></li>`)
     .join("")}</ul>`;
 }
 
@@ -458,6 +460,11 @@ function ensureQuranHomeStrip(container, onOpenSurah) {
 
   const panel = strip.querySelector("[data-browse-panel]");
   strip.addEventListener("click", (event) => {
+    const pageItem = event.target.closest("[data-page]");
+    if (pageItem) {
+      window.dispatchEvent(new CustomEvent("tazawwud:open-page", { detail: Number(pageItem.dataset.page) }));
+      return;
+    }
     const chip = event.target.closest("[data-open-surah]");
     if (chip && typeof onOpenSurah === "function") {
       const ayah = Number(chip.dataset.ayah) || undefined;

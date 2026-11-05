@@ -505,6 +505,17 @@ window.tazawwudHandleBack = () => {
 };
 
 function initRouter() {
+  // The Page option on the Quran front page: show that one page of the Mushaf.
+  window.addEventListener("tazawwud:open-page", (event) => {
+    const pageNumber = Number(event.detail);
+    if (!pageNumber) return;
+    showView("mushaf");
+    history.pushState(null, "", "#quran");
+    const mushafRootEl = document.getElementById("mushaf-root");
+    loadMushafModule()
+      .then(({ openPageInMushaf }) => openPageInMushaf(mushafRootEl, pageNumber))
+      .catch((error) => console.error("[TAZAWWUD] Could not open the page:", error));
+  });
   // A settings row can ask the page to scroll to one of its groups once it opens.
   document.addEventListener("click", (event) => {
     const row = event.target.closest?.("[data-goto-anchor]");
@@ -683,6 +694,8 @@ async function initFirebaseFeatures() {
 function initApp() {
   renderFooterYear();
   initRouter();
+  // A reminder tapped in a notification opens as a card in the app.
+  import("/js/reminder-card.js").then((m) => m.initReminderCard()).catch(() => {});
   // First launch only: intro screens, then the location and notification prompts.
   import("/js/onboarding.js")
     .then(({ maybeStartOnboarding }) => maybeStartOnboarding())

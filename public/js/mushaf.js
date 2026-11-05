@@ -144,9 +144,6 @@ function toArabicDigits(n) {
 function renderReadingTopBar(pageNumber, juzLabel, surahLabel = "") {
   return `
     <div class="reading-topbar">
-      <button type="button" id="prev-page-btn" class="reading-nav-btn" aria-label="Previous page" ${pageNumber <= 1 ? "disabled" : ""}>
-        <span class="material-symbols-rounded icon" aria-hidden="true">chevron_left</span>
-      </button>
       <button type="button" id="surah-picker-open" class="reading-surah-picker" aria-haspopup="dialog">
         <span class="reading-surah-picker__name">${escapeHtml(surahLabel || "Quran")}</span>
         <span class="reading-surah-picker__meta">Page ${pageNumber}${juzLabel ? ` · ${juzLabel}` : ""}</span>
@@ -157,9 +154,6 @@ function renderReadingTopBar(pageNumber, juzLabel, surahLabel = "") {
           <span class="material-symbols-rounded icon" aria-hidden="true">tune</span>
         </button>
       </div>
-      <button type="button" id="next-page-btn" class="reading-nav-btn" aria-label="Next page" ${pageNumber >= PAGE_COUNT ? "disabled" : ""}>
-        <span class="material-symbols-rounded icon" aria-hidden="true">chevron_right</span>
-      </button>
     </div>
   `;
 }
@@ -598,14 +592,12 @@ function wireGoto(container) {
         message.textContent = error;
         return;
       }
-      const page = pageForAyah(detail, ayah);
-      if (!page) {
+      if (!pageForAyah(detail, ayah)) {
         message.textContent = "That ayah could not be found.";
         return;
       }
-      await renderPage(container, page);
-      container.querySelector(`.reading-ayah[data-surah="${surah}"][data-ayah="${ayah}"]`)
-        ?.scrollIntoView({ block: "center" });
+      // Same as every other verse jump: the surah opens as one scroll, at that verse.
+      await openAyahInMushaf(container, surah, ayah);
     } catch (error) {
       console.error("[TAZAWWUD] Go to ayah failed:", error);
       message.textContent = "Could not open that ayah. Check your connection, then try again.";
@@ -670,15 +662,6 @@ async function openContents(container) {
   }
 }
 
-function wireTopBarNav(container, pageNumber) {
-  container.querySelector("#prev-page-btn")?.addEventListener("click", () => {
-    if (pageNumber > 1) renderPage(container, pageNumber - 1);
-  });
-  container.querySelector("#next-page-btn")?.addEventListener("click", () => {
-    if (pageNumber < PAGE_COUNT) renderPage(container, pageNumber + 1);
-  });
-}
-
 function wireSwipeGestures(container, surah) {
   let touchStartX = null;
   container.addEventListener("touchstart", (e) => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
@@ -723,6 +706,12 @@ export async function renderSurah(container, surahNumber, translationCode) {
 
 const MUSHAF_LAST_PAGE = 604;
 
+/** Keeps only one surah's ayahs on a page (or every ayah when no surah is given). */
+function filterToSurah(page, surahNumber) {
+  if (!surahNumber) return page;
+  return { ...page, ayahs: page.ayahs.filter((a) => a.surah.number === surahNumber) };
+}
+
 /** One page as a block in the continuous scroll, with its page number at the foot. */
 function pageBlockHtml(page) {
   return `<section class="mushaf-block" data-page="${page.number}">
@@ -737,27 +726,30 @@ function pageBlockHtml(page) {
  * Adds the following pages to the bottom of the scroll as the reader gets near the end.
  * Pages come from the local Tanzil data, so this works offline.
  */
-function observeContinuousPages(container, startPage) {
+function observeContinuousPages(container, startPage, scope = null) {
   if (container._mushafObserver) container._mushafObserver.disconnect();
   const sentinel = container.querySelector("[data-mushaf-sentinel]");
   if (!sentinel || !("IntersectionObserver" in window)) return;
   let loadedUpTo = startPage;
   let busy = false;
+  const endPage = scope ? scope.lastPage : MUSHAF_LAST_PAGE;
   const observer = new IntersectionObserver(
     async (entries) => {
       if (!entries[0]?.isIntersecting || busy) return;
-      if (loadedUpTo >= MUSHAF_LAST_PAGE) {
+      if (loadedUpTo >= endPage) {
         observer.disconnect();
         return;
       }
       busy = true;
       try {
         const next = loadedUpTo + 1;
-        const page = await fetchPage(next, getCurrentTranslationCode());
+        const page = filterToSurah(await fetchPage(next, getCurrentTranslationCode()), scope?.surah);
         const scroll = container.querySelector(".mushaf-scroll");
         if (!scroll) return;
-        scroll.insertAdjacentHTML("beforeend", pageBlockHtml(page));
-        wireAyahTaps(scroll.lastElementChild.querySelector(".reading-card"), page);
+        if (page.ayahs.length) {
+          scroll.insertAdjacentHTML("beforeend", pageBlockHtml(page));
+          wireAyahTaps(scroll.lastElementChild.querySelector(".reading-card"), page);
+        }
         const first = page.ayahs[0];
         if (first) recordLastRead(first.surah.number, first.numberInSurah);
         loadedUpTo = next;
@@ -773,7 +765,7 @@ function observeContinuousPages(container, startPage) {
   observer.observe(sentinel);
 }
 
-async function renderPage(container, pageNumber) {
+async function renderPage(container, pageNumber, scope = null, upTo = pageNumber) {
   if (!container) return;
 
   stopReadingAudio(); // never leave a previous Surah's audio playing under new text
@@ -783,9 +775,15 @@ async function renderPage(container, pageNumber) {
 
   try {
     const page = await fetchPage(pageNumber, getCurrentTranslationCode());
+    const shown = filterToSurah(page, scope?.surah);
+    const extras = [];
+    for (let p = pageNumber + 1; p <= upTo; p += 1) {
+      const extra = filterToSurah(await fetchPage(p, getCurrentTranslationCode()), scope?.surah);
+      if (extra.ayahs.length) extras.push(extra);
+    }
 
     container.innerHTML = `
-      ${renderReadingTopBar(page.number, juzLabelForPage(page), surahLabelForPage(page))}
+      ${renderReadingTopBar(shown.number, juzLabelForPage(shown), surahLabelForPage(shown))}
       <form id="reading-goto-form" class="reading-goto" autocomplete="off">
         <label>Surah <input id="goto-surah" type="number" min="1" max="114" inputmode="numeric" required /></label>
         <label>Ayah <input id="goto-ayah" type="number" min="1" inputmode="numeric" required /></label>
@@ -793,7 +791,7 @@ async function renderPage(container, pageNumber) {
         <p id="goto-message" class="reading-goto__message" role="status"></p>
       </form>
       <div class="mushaf-scroll">
-        ${pageBlockHtml(page)}
+        ${pageBlockHtml(shown)}${extras.map((extra) => pageBlockHtml(extra)).join("")}
       </div>
       <div class="mushaf-sentinel" data-mushaf-sentinel aria-hidden="true"></div>
       ${renderBottomToolbar()}
@@ -825,15 +823,14 @@ async function renderPage(container, pageNumber) {
         onReciterChange: (id) => setCurrentReciterId(id),
       })
     );
-    const cardEl = container.querySelector(".mushaf-block .reading-card");
-    wireAyahTaps(cardEl, page);
-    observeContinuousPages(container, page.number);
-    wireTopBarNav(container, page.number);
+    const cards = container.querySelectorAll(".mushaf-block .reading-card");
+    [shown, ...extras].forEach((pg, i) => wireAyahTaps(cards[i], pg));
+    observeContinuousPages(container, extras.length ? extras[extras.length - 1].number : shown.number, scope);
     wireGoto(container);
     wireContents(container);
     wirePlayButton(container, page.ayahs[0]?.surah.number || 1);
     wireAutoScrollAndRepeat(container);
-    wireSwipeGestures(container, {
+    if (!scope) wireSwipeGestures(container, {
       number: page.number,
       ayahs: [],
     });
@@ -847,75 +844,27 @@ async function renderPage(container, pageNumber) {
 }
 
 /** Opens a specific Surah — a direct render, no lookup network call needed. */
+/** Opens one Mushaf page, on its own (not the surah scroll). */
+export async function openPageInMushaf(container, pageNumber) {
+  return renderPage(container, pageNumber);
+}
+
 export async function openSurahInMushaf(container, surahNumber, ayahNumber) {
-  if (!ayahNumber) return renderSurah(container, surahNumber);
-  return openAyahInMushaf(container, surahNumber, ayahNumber);
+  return openAyahInMushaf(container, surahNumber, ayahNumber || 1);
 }
 
-/** "4. An-Nisaa'" for the surah at the top of the page. */
-function surahLabelForPage(page) {
-  const first = page.ayahs[0];
-  if (!first) return "";
-  return `${first.surah.number}. ${first.surah.englishName || ""}`.trim();
-}
-
-/**
- * The Surah / Ayah / Page picker, opened from the dropdown in the header.
- * "Go to surah" opens the surah at the chosen ayah; "Go to page" opens that page.
- */
-async function openSurahPicker(container, currentPage) {
-  if (document.querySelector(".quran-sheet-overlay")) return;
-  const surahs = await fetchSurahList();
-  const overlay = document.createElement("div");
-  overlay.className = "quran-sheet-overlay";
-  overlay.innerHTML = `
-    <div class="quran-sheet quran-picker" role="dialog" aria-modal="true" aria-label="Go to a surah, ayah or page">
-      <div class="quran-sheet__head"><h2>Go to</h2><button type="button" class="quran-chip" data-picker-close>Close</button></div>
-      <div class="quran-picker__row">
-        <label>Surah<select data-picker="surah">${surahs.map((s) => `<option value="${s.number}">${s.number}. ${escapeHtml(s.englishName)}</option>`).join("")}</select></label>
-        <label>Ayah<select data-picker="ayah"></select></label>
-        <label>Page<select data-picker="page">${Array.from({ length: PAGE_COUNT }, (_, i) => `<option value="${i + 1}" ${i + 1 === currentPage ? "selected" : ""}>${i + 1}</option>`).join("")}</select></label>
-      </div>
-      <div class="quran-picker__actions">
-        <button type="button" class="quran-chip" data-picker-page>Go to page</button>
-        <button type="button" class="quran-chip quran-chip--primary" data-picker-surah>Go to surah</button>
-      </div>
-    </div>`;
-  document.body.append(overlay);
-  const surahSelect = overlay.querySelector('[data-picker="surah"]');
-  const ayahSelect = overlay.querySelector('[data-picker="ayah"]');
-  const fillAyahs = () => {
-    const surah = surahs.find((x) => String(x.number) === surahSelect.value);
-    const count = surah?.numberOfAyahs || 1;
-    ayahSelect.innerHTML = Array.from({ length: count }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
-  };
-  fillAyahs();
-  surahSelect.addEventListener("change", fillAyahs);
-  overlay.addEventListener("click", (event) => {
-    if (event.target === overlay || event.target.closest("[data-picker-close]")) {
-      overlay.remove();
-      return;
-    }
-    if (event.target.closest("[data-picker-surah]")) {
-      overlay.remove();
-      openAyahInMushaf(container, Number(surahSelect.value), Number(ayahSelect.value));
-    }
-    if (event.target.closest("[data-picker-page]")) {
-      overlay.remove();
-      renderPage(container, Number(overlay.querySelector('[data-picker="page"]').value));
-    }
-  });
-}
-
-/** Opens the Mushaf on the page of an ayah, and scrolls to that ayah. */
+/** Opens a surah as one continuous scroll, starting at the ayah given (or its first ayah). */
 async function openAyahInMushaf(container, surahNumber, ayahNumber) {
   try {
     const detail = await fetchSurahDetail(surahNumber, getCurrentTranslationCode());
-    const pageNumber = pageForAyah(detail, ayahNumber);
-    if (!pageNumber) return renderSurah(container, surahNumber);
-    await renderPage(container, pageNumber);
-    const target = container.querySelector(`.reading-ayah[data-surah="${surahNumber}"][data-ayah="${ayahNumber}"]`);
-    target?.scrollIntoView({ block: "center" });
+    const firstPage = pageForAyah(detail, 1);
+    const lastPage = pageForAyah(detail, detail.numberOfAyahs);
+    const targetPage = pageForAyah(detail, ayahNumber) || firstPage;
+    const scope = { surah: surahNumber, lastPage };
+    await renderPage(container, firstPage, scope, targetPage);
+    container
+      .querySelector(`.reading-ayah[data-surah="${surahNumber}"][data-ayah="${ayahNumber}"]`)
+      ?.scrollIntoView({ block: "center" });
   } catch (error) {
     console.error(`[TAZAWWUD] Could not open ${surahNumber}:${ayahNumber}:`, error);
     return renderSurah(container, surahNumber);

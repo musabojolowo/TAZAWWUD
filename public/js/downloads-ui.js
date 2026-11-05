@@ -290,14 +290,8 @@ async function renderPanel() {
 
     <div class="dl-group">
       <h4 class="dl-group__title">Qur'an text</h4>
-      <label class="dl-label" for="dl-translation">Translation to download</label>
-      <select id="dl-translation" class="salah-select" data-dl-change="translation">${translationOptions}</select>
-      <p class="dl-status ${qComplete ? "is-downloaded" : "is-online"}">
-        ${qComplete ? "Downloaded for this translation" : "Online only"}
-      </p>
-      <p class="dl-note">${qStatus.surahs}/114 surahs · ${latest.shared.pages}/604 Mushaf pages</p>
-      ${jobLine(qJob)}
-      <div class="dl-row__actions">${actionButtons("quran", code, { complete: qComplete, partial: qPartial && !qComplete, running: qRunning })}</div>
+      <p class="dl-note">Built into the app. The Qur'an text, the Pickthall translation and every Mushaf page work offline, so there is nothing to download.</p>
+    </div>
     </div>
 
     <div class="dl-group">

@@ -89,7 +89,13 @@ final class PrayerNotifier {
     static void showReminder(Context context, String title, String body, String tag) {
         createChannels(context);
         Intent open = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
-        PendingIntent tap = PendingIntent.getActivity(context, 0, open,
+        // The tap carries the reminder, so the app can show it in a card (see MainActivity).
+        open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        open.putExtra("tazawwud_action", "reminder");
+        open.putExtra("tazawwud_title", title == null ? "" : title);
+        open.putExtra("tazawwud_body", body == null ? "" : body);
+        int requestCode = 1000 + Math.abs((tag == null ? "" : tag).hashCode() % 1000);
+        PendingIntent tap = PendingIntent.getActivity(context, requestCode, open,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, REMINDER_CHANNEL)
             .setSmallIcon(context.getApplicationInfo().icon)

@@ -26,6 +26,7 @@ import {
 import { onUserChanged, getCurrentUser } from "./auth.js";
 import { escapeHtml } from "./html-utils.js";
 import { initReminderAdmin } from "./admin-reminders.js";
+import { initDailySchedule } from "./admin-schedule.js";
 
 const storiesRef = ref(db, "stories");
 let listenerAttached = false;
@@ -257,12 +258,14 @@ function renderAdminShell(container) {
     </header>
     <section id="admin-daily-content" class="admin-daily-content" aria-labelledby="admin-daily-content-heading"></section>
     <section id="admin-reminders" class="admin-reminders"></section>
+    <section id="admin-schedule" class="admin-reminders"></section>
     <section id="admin-stories-root" aria-live="polite">
       <div class="stories-status">Loading Stories management…</div>
     </section>
   `;
   initDailyContentAdmin(container.querySelector("#admin-daily-content"));
   initReminderAdmin(container.querySelector("#admin-reminders"));
+  initDailySchedule(container.querySelector("#admin-schedule"));
 }
 
 function localDateKey(date = new Date()) {

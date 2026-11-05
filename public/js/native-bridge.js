@@ -276,3 +276,15 @@ export async function speakArabicNative(text) {
     return { available: false };
   }
 }
+
+/** A reminder the user tapped in a notification, taken once. Null if there is none or outside the app. */
+export async function getPendingAction() {
+  if (!inNativeApp()) return null;
+  try {
+    const result = await plugin("PrayerBridge").getPendingAction();
+    if (!result?.action) return null;
+    return JSON.parse(String(result.action));
+  } catch {
+    return null;
+  }
+}
