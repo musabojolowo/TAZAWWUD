@@ -556,11 +556,12 @@ function initRouter() {
   // both stay one tap away from each other).
   document.getElementById("mushaf-switch-to-verses-btn")?.addEventListener("click", () => {
     const surahNumber = document.getElementById("mushaf-root")?.dataset.currentSurah;
-    openSurahInReader(Number(surahNumber) || 1);
+    // No fallback to surah 1: if the surah is not known yet, do nothing.
+    if (surahNumber) openSurahInReader(Number(surahNumber));
   });
   document.getElementById("reader-switch-to-mushaf-btn")?.addEventListener("click", () => {
     const surahNumber = document.getElementById("reader-content")?.dataset.currentSurah;
-    openSurah(Number(surahNumber) || 1);
+    if (surahNumber) openSurah(Number(surahNumber));
   });
 
   // A bookmark tap asks for one surah at one ayah. The reader renders asynchronously,

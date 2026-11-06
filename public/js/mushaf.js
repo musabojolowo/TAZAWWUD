@@ -844,6 +844,61 @@ async function renderPage(container, pageNumber, scope = null, upTo = pageNumber
 }
 
 /** Opens a specific Surah — a direct render, no lookup network call needed. */
+/** "4. An-Nisaa'" for the surah at the top of the page. */
+function surahLabelForPage(page) {
+  const first = page.ayahs[0];
+  if (!first) return "";
+  return `${first.surah.number}. ${first.surah.englishName || ""}`.trim();
+}
+
+/**
+ * The Surah / Ayah / Page picker, opened from the dropdown in the header.
+ * "Go to surah" opens the surah at the chosen ayah; "Go to page" opens that page.
+ */
+async function openSurahPicker(container, currentPage) {
+  if (document.querySelector(".quran-sheet-overlay")) return;
+  const surahs = await fetchSurahList();
+  const overlay = document.createElement("div");
+  overlay.className = "quran-sheet-overlay";
+  overlay.innerHTML = `
+    <div class="quran-sheet quran-picker" role="dialog" aria-modal="true" aria-label="Go to a surah, ayah or page">
+      <div class="quran-sheet__head"><h2>Go to</h2><button type="button" class="quran-chip" data-picker-close>Close</button></div>
+      <div class="quran-picker__row">
+        <label>Surah<select data-picker="surah">${surahs.map((s) => `<option value="${s.number}">${s.number}. ${escapeHtml(s.englishName)}</option>`).join("")}</select></label>
+        <label>Ayah<select data-picker="ayah"></select></label>
+        <label>Page<select data-picker="page">${Array.from({ length: PAGE_COUNT }, (_, i) => `<option value="${i + 1}" ${i + 1 === currentPage ? "selected" : ""}>${i + 1}</option>`).join("")}</select></label>
+      </div>
+      <div class="quran-picker__actions">
+        <button type="button" class="quran-chip" data-picker-page>Go to page</button>
+        <button type="button" class="quran-chip quran-chip--primary" data-picker-surah>Go to surah</button>
+      </div>
+    </div>`;
+  document.body.append(overlay);
+  const surahSelect = overlay.querySelector('[data-picker="surah"]');
+  const ayahSelect = overlay.querySelector('[data-picker="ayah"]');
+  const fillAyahs = () => {
+    const surah = surahs.find((x) => String(x.number) === surahSelect.value);
+    const count = surah?.numberOfAyahs || 1;
+    ayahSelect.innerHTML = Array.from({ length: count }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+  };
+  fillAyahs();
+  surahSelect.addEventListener("change", fillAyahs);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay || event.target.closest("[data-picker-close]")) {
+      overlay.remove();
+      return;
+    }
+    if (event.target.closest("[data-picker-surah]")) {
+      overlay.remove();
+      openAyahInMushaf(container, Number(surahSelect.value), Number(ayahSelect.value));
+    }
+    if (event.target.closest("[data-picker-page]")) {
+      overlay.remove();
+      renderPage(container, Number(overlay.querySelector('[data-picker="page"]').value));
+    }
+  });
+}
+
 /** Opens one Mushaf page, on its own (not the surah scroll). */
 export async function openPageInMushaf(container, pageNumber) {
   return renderPage(container, pageNumber);

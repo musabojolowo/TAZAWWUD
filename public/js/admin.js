@@ -256,14 +256,12 @@ function renderAdminShell(container) {
     <header class="view-header">
       <h2 class="view-header__title">Admin Dashboard</h2>
     </header>
-    <section id="admin-daily-content" class="admin-daily-content" aria-labelledby="admin-daily-content-heading"></section>
     <section id="admin-reminders" class="admin-reminders"></section>
     <section id="admin-schedule" class="admin-reminders"></section>
     <section id="admin-stories-root" aria-live="polite">
       <div class="stories-status">Loading Stories management…</div>
     </section>
   `;
-  initDailyContentAdmin(container.querySelector("#admin-daily-content"));
   initReminderAdmin(container.querySelector("#admin-reminders"));
   initDailySchedule(container.querySelector("#admin-schedule"));
 }

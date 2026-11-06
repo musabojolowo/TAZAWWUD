@@ -11,14 +11,15 @@
 @font-face { font-family: "Inter"; src: url("/fonts/Inter-SemiBold.ttf") format("truetype"); font-weight: 600; font-style: normal; font-display: swap; }
 
 :root {
-  --qt-emerald: #0d3b2e;
-  --qt-emerald-deep: #071f18;
-  --qt-emerald-soft: #123f32;
-  --qt-warm-white: #f4efe3;
-  --qt-muted: #aebfb6;
-  --qt-gold: #c9a24a;
-  --qt-gold-soft: rgba(201, 162, 74, 0.28);
-  --qt-line: rgba(244, 239, 227, 0.08);
+  /* The app's own colours, so the Qur'an follows light and dark mode. */
+  --qt-emerald: var(--color-surface, #ffffff);
+  --qt-emerald-deep: var(--color-bg, #f8f7f2);
+  --qt-emerald-soft: var(--color-soft-cream, #efe9dc);
+  --qt-warm-white: var(--color-text, #1d2b25);
+  --qt-muted: var(--color-text-muted, #5b6b63);
+  --qt-gold: var(--color-accent, #a77c24);
+  --qt-gold-soft: var(--color-border, rgba(0, 0, 0, 0.12));
+  --qt-line: var(--color-border, rgba(0, 0, 0, 0.1));
   --qt-radius: 14px;
   --qt-arabic: "Noto Naskh Arabic", "Amiri", "Traditional Arabic", serif;
   --qt-latin: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -56,7 +57,7 @@
 }
 .quran-browse-item {
   border: 1px solid var(--qt-line);
-  background: rgba(244, 239, 227, 0.03);
+  background: var(--color-surface, #ffffff);
   border-radius: var(--qt-radius);
   color: var(--qt-warm-white);
   box-shadow: none;
@@ -72,7 +73,7 @@
   padding: 10px 14px;
   border: 1px solid var(--qt-line);
   border-radius: var(--qt-radius);
-  background: rgba(244, 239, 227, 0.03);
+  background: var(--color-surface, #ffffff);
   box-shadow: none;
   color: var(--qt-warm-white);
 }
@@ -115,7 +116,7 @@
   padding: 8px 18px 24px;
 }
 .reading-bottom-toolbar {
-  background: rgba(7, 31, 24, 0.96);
+  background: var(--color-surface, #ffffff);
   border-top: 1px solid var(--qt-line);
   box-shadow: none;
 }
@@ -129,7 +130,7 @@
 
 /* Settings and picker sheets */
 .quran-sheet-overlay {
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.45);
 }
 .quran-sheet {
   background: var(--qt-emerald);
