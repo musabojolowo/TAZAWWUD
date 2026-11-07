@@ -103,3 +103,16 @@
 }
 .reminder-card__close:focus-visible { outline: 2px solid var(--color-focus, #f6d58b); outline-offset: 2px; }
 
+
+/* Floating Continue Reading pill on the Qur'an page: small, above the bottom bar. */
+.quran-float-continue {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 78px); z-index: 90;
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--color-border, rgba(0,0,0,0.12));
+  background: var(--color-surface, #ffffff); color: var(--color-text, #1d2b25);
+  font-family: var(--qt-latin, system-ui, sans-serif); font-size: 14px; font-weight: 600;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.12); cursor: pointer; white-space: nowrap;
+}
+.quran-float-continue .icon { color: var(--color-accent, #a77c24); font-size: 18px; }
+.quran-float-continue:focus-visible { outline: 2px solid var(--color-focus, #a77c24); outline-offset: 2px; }

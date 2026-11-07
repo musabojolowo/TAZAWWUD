@@ -319,9 +319,16 @@ function renderAyahDetailPanel(ayahNumber, translationText) {
         <button type="button" class="ayah-btn reading-tafsir-toggle" aria-expanded="false">
           <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">auto_stories</span> Tafsir
         </button>
+        <button type="button" class="ayah-btn reading-copy-ayah" aria-label="Copy ayah ${ayahNumber}">
+          <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">content_copy</span>
+        </button>
+        <button type="button" class="ayah-btn reading-share-ayah" aria-label="Share ayah ${ayahNumber}">
+          <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">share</span>
+        </button>
         <button type="button" class="ayah-btn reading-bookmark-toggle" aria-label="Bookmark ayah ${ayahNumber}">
           <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">bookmark</span>
         </button>
+        <span class="reading-ayah-detail__status" aria-live="polite"></span>
       </div>
       <div class="reading-ayah-detail__tafsir" hidden></div>
     </div>
@@ -364,19 +371,60 @@ function toggleAyahDetail(cardEl, page, surahNumber, ayahNumber) {
   if (!panel) {
     const surah = page.details.get(Number(surahNumber));
     const ayah = surah?.ayahs.find((a) => a.numberInSurah === Number(ayahNumber));
+    const surahName = page.ayahs.find((a) => a.surah.number === Number(surahNumber))?.surah.englishName || `Surah ${surahNumber}`;
+    const shareText = `${ayah?.arabic || ""}\n${surahName} ${surahNumber}:${ayahNumber}`;
     const wrapper = document.createElement("div");
     wrapper.innerHTML = renderAyahDetailPanel(ayahNumber, ayah?.translation ?? "Translation unavailable.");
     panel = wrapper.firstElementChild;
     panel.id = panelId;
     numEl.insertAdjacentElement("afterend", panel);
-    wireAyahDetailPanel(panel, Number(surahNumber), Number(ayahNumber));
+    wireAyahDetailPanel(panel, Number(surahNumber), Number(ayahNumber), shareText);
     initBookmarkState(panel, Number(surahNumber), Number(ayahNumber));
   }
 
   panel.hidden = !panel.hidden;
 }
 
-function wireAyahDetailPanel(panel, surahNumber, ayahNumber) {
+/** Copies text to the clipboard. Returns true if it worked. */
+async function copyAyahText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const field = document.createElement("textarea");
+    field.value = text;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.append(field);
+    field.select();
+    const copied = document.execCommand("copy");
+    field.remove();
+    return copied;
+  }
+}
+
+function wireAyahDetailPanel(panel, surahNumber, ayahNumber, shareText = "") {
+  const status = panel.querySelector(".reading-ayah-detail__status");
+  const say = (message) => {
+    if (status) status.textContent = message;
+  };
+  panel.querySelector(".reading-copy-ayah")?.addEventListener("click", async () => {
+    say((await copyAyahText(shareText)) ? "Copied" : "Could not copy");
+  });
+  panel.querySelector(".reading-share-ayah")?.addEventListener("click", async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: shareText });
+        say("Shared");
+      } catch (error) {
+        if (error?.name !== "AbortError") say("Could not share");
+      }
+      return;
+    }
+    say((await copyAyahText(shareText)) ? "Copied (sharing is not available here)" : "Could not copy");
+  });
+
   const tafsirBtn = panel.querySelector(".reading-tafsir-toggle");
   const tafsirPanel = panel.querySelector(".reading-ayah-detail__tafsir");
 
@@ -662,18 +710,77 @@ async function openContents(container) {
   }
 }
 
+/**
+ * One sideways-swipe handler per container. Each new handler replaces the old one, so a swipe
+ * never runs twice. onSwipe receives +1 for a swipe left and -1 for a swipe right.
+ */
+function setSwipe(container, onSwipe) {
+  if (container._swipeHandlers) {
+    container.removeEventListener("touchstart", container._swipeHandlers.start);
+    container.removeEventListener("touchend", container._swipeHandlers.end);
+  }
+  let startX = null;
+  let startY = null;
+  const start = (e) => {
+    startX = e.changedTouches[0].screenX;
+    startY = e.changedTouches[0].screenY;
+  };
+  const end = (e) => {
+    if (startX === null) return;
+    const dx = e.changedTouches[0].screenX - startX;
+    const dy = e.changedTouches[0].screenY - startY;
+    startX = null;
+    // A sideways swipe: at least 70 px, and clearly more sideways than up or down.
+    if (Math.abs(dx) < 70 || Math.abs(dx) < 2 * Math.abs(dy)) return;
+    onSwipe(dx < 0 ? 1 : -1);
+  };
+  container.addEventListener("touchstart", start, { passive: true });
+  container.addEventListener("touchend", end, { passive: true });
+  container._swipeHandlers = { start, end };
+}
+
+/** Page view: swipe left for the next page, right for the previous page. */
 function wireSwipeGestures(container, surah) {
-  let touchStartX = null;
-  container.addEventListener("touchstart", (e) => { touchStartX = e.changedTouches[0].screenX; }, { passive: true });
-  container.addEventListener("touchend", (e) => {
-    if (touchStartX === null) return;
-    const dx = e.changedTouches[0].screenX - touchStartX;
-    if (Math.abs(dx) > 70) {
-      if (dx < 0 && surah.number < PAGE_COUNT) renderPage(container, surah.number + 1);
-      else if (dx > 0 && surah.number > 1) renderPage(container, surah.number - 1);
-    }
-    touchStartX = null;
-  }, { passive: true });
+  setSwipe(container, (dir) => {
+    if (dir > 0 && surah.number < PAGE_COUNT) renderPage(container, surah.number + 1);
+    else if (dir < 0 && surah.number > 1) renderPage(container, surah.number - 1);
+  });
+}
+
+/** Unit view: swipe left for the next unit, right for the previous one (Juz, Hizb or Ruku). */
+function wireUnitSwipe(container, unit) {
+  setSwipe(container, (dir) => {
+    const next = unit.index + dir;
+    if (next >= 0 && next < unit.count) openUnitInMushaf(container, unit.type, next);
+  });
+}
+
+/**
+ * Opens one Juz, Hizb or Ruku: only its own pages and verses. The range runs from its first verse
+ * up to (not including) the first verse of the next unit.
+ */
+export async function openUnitInMushaf(container, type, index) {
+  try {
+    const [, , metadata] = await loadLocalQuran();
+    const starts = type === "juz" ? metadata.juz : type === "hizb" ? metadata.hizbQuarter : metadata.ruku;
+    if (!starts || index < 0 || index >= starts.length) return;
+    const from = starts[index];
+    const to = index + 1 < starts.length ? starts[index + 1] : null;
+    const firstPage = pageNumberFor(metadata.page, from);
+    const lastPage = to ? pageNumberFor(metadata.page, to) : MUSHAF_LAST_PAGE;
+    const scope = { range: { from, to }, firstPage, lastPage, unit: { type, index, count: starts.length } };
+    await renderPage(container, firstPage, scope, firstPage);
+  } catch (error) {
+    console.error(`[TAZAWWUD] Could not open ${type} ${index + 1}:`, error);
+  }
+}
+
+/** Surah view: swipe left for the next surah, right for the previous surah. */
+function wireSurahSwipe(container, surahNumber) {
+  setSwipe(container, (dir) => {
+    const next = surahNumber + dir;
+    if (next >= 1 && next <= 114) openAyahInMushaf(container, next, 1);
+  });
 }
 
 // ----------------------------------------------------------------------------
@@ -707,6 +814,32 @@ export async function renderSurah(container, surahNumber, translationCode) {
 const MUSHAF_LAST_PAGE = 604;
 
 /** Keeps only one surah's ayahs on a page (or every ayah when no surah is given). */
+/** Keeps only the ayahs that belong to the current scope: a unit's range, or a surah. */
+function filterByScope(page, scope) {
+  if (!scope) return page;
+  if (scope.range) {
+    const { from, to } = scope.range;
+    return {
+      ...page,
+      ayahs: page.ayahs.filter((a) => {
+        const position = [a.surah.number, a.numberInSurah];
+        return comparePosition(position, from) >= 0 && (!to || comparePosition(position, to) < 0);
+      }),
+    };
+  }
+  return filterToSurah(page, scope.surah);
+}
+
+/** The page (1 to 604) that contains a position, from the Tanzil page starts. */
+function pageNumberFor(pageStarts, position) {
+  let best = 0;
+  for (let k = 0; k < pageStarts.length; k += 1) {
+    if (comparePosition(pageStarts[k], position) <= 0) best = k;
+    else break;
+  }
+  return best + 1;
+}
+
 function filterToSurah(page, surahNumber) {
   if (!surahNumber) return page;
   return { ...page, ayahs: page.ayahs.filter((a) => a.surah.number === surahNumber) };
@@ -743,7 +876,7 @@ function observeContinuousPages(container, startPage, scope = null) {
       busy = true;
       try {
         const next = loadedUpTo + 1;
-        const page = filterToSurah(await fetchPage(next, getCurrentTranslationCode()), scope?.surah);
+        const page = filterByScope(await fetchPage(next, getCurrentTranslationCode()), scope);
         const scroll = container.querySelector(".mushaf-scroll");
         if (!scroll) return;
         if (page.ayahs.length) {
@@ -753,6 +886,10 @@ function observeContinuousPages(container, startPage, scope = null) {
         const first = page.ayahs[0];
         if (first) recordLastRead(first.surah.number, first.numberInSurah);
         loadedUpTo = next;
+        // The observer only reports a change. If the sentinel is still on screen after a page is added,
+        // re-observing it makes the next page load too, so the surah continues to its last page.
+        observer.unobserve(sentinel);
+        observer.observe(sentinel);
       } catch (error) {
         console.error(`[TAZAWWUD] Could not add Mushaf page ${loadedUpTo + 1}:`, error);
       } finally {
@@ -775,10 +912,10 @@ async function renderPage(container, pageNumber, scope = null, upTo = pageNumber
 
   try {
     const page = await fetchPage(pageNumber, getCurrentTranslationCode());
-    const shown = filterToSurah(page, scope?.surah);
+    const shown = filterByScope(page, scope);
     const extras = [];
     for (let p = pageNumber + 1; p <= upTo; p += 1) {
-      const extra = filterToSurah(await fetchPage(p, getCurrentTranslationCode()), scope?.surah);
+      const extra = filterByScope(await fetchPage(p, getCurrentTranslationCode()), scope);
       if (extra.ayahs.length) extras.push(extra);
     }
 
@@ -830,10 +967,16 @@ async function renderPage(container, pageNumber, scope = null, upTo = pageNumber
     wireContents(container);
     wirePlayButton(container, page.ayahs[0]?.surah.number || 1);
     wireAutoScrollAndRepeat(container);
-    if (!scope) wireSwipeGestures(container, {
-      number: page.number,
-      ayahs: [],
-    });
+    if (scope?.surah) {
+      wireSurahSwipe(container, scope.surah);
+    } else if (scope?.unit) {
+      wireUnitSwipe(container, scope.unit);
+    } else {
+      wireSwipeGestures(container, {
+        number: page.number,
+        ayahs: [],
+      });
+    }
 
     recordLastRead(page.ayahs[0]?.surah.number || 1, page.ayahs[0]?.numberInSurah || 1);
   } catch (error) {

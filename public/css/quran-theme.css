@@ -173,3 +173,57 @@
 .reading-ayah {
   line-height: 2.1;
 }
+
+/* Hadith cards: the full reference, and Copy / Share. Follows the app's light and dark colours. */
+.hadith-card__ref {
+  margin: 0 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border, rgba(0,0,0,0.1));
+}
+.hadith-card__ref-line {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-muted, #5b6b63);
+}
+.hadith-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.hadith-card__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border, rgba(0,0,0,0.12));
+  background: transparent;
+  color: var(--color-text, #1d2b25);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.hadith-card__btn:focus-visible { outline: 2px solid var(--color-focus, #a77c24); outline-offset: 2px; }
+.hadith-card__status { font-size: 12px; color: var(--color-text-muted, #5b6b63); }
+
+/* Section C: the navigation stays at the top while the content scrolls, without covering it.
+   The Qur'an reader's Back to Surahs bar, and the back button on each Hadith screen. */
+#view-mushaf .reader-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--color-bg, #f8f7f2);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+#view-sunnah .reader-back-btn {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--color-bg, #f8f7f2);
+}

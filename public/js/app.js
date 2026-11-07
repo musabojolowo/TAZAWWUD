@@ -226,6 +226,7 @@ function initCloudSync({ cloud, authModule }) {
  * points at that view (or its nav group, e.g. "reader"/"mushaf" -> "quran").
  */
 function showView(viewName) {
+  document.getElementById("quran-float-continue")?.remove();
   if (!VALID_VIEWS.includes(viewName)) {
     viewName = "home";
   }
@@ -396,6 +397,12 @@ function renderContinueReadingBanner(bannerId = "continue-reading-banner") {
   if (!banner) return;
 
   const lastSurah = localStorage.getItem("tazawwud:lastReadSurah");
+  if (bannerId === "continue-reading-banner") {
+    // Qur'an page: a small floating button instead of a card.
+    banner.innerHTML = "";
+    renderFloatingContinue(lastSurah);
+    return;
+  }
   if (!lastSurah) {
     banner.innerHTML = "";
     return;
@@ -420,6 +427,29 @@ function renderContinueReadingBanner(bannerId = "continue-reading-banner") {
       ? openSurah(Number(lastSurah), Number(lastRead.ayah))
       : openSurah(Number(lastSurah))
   );
+}
+
+/** The floating Continue Reading pill on the Qur'an page. Removed when the page is left. */
+function renderFloatingContinue(lastSurah) {
+  document.getElementById("quran-float-continue")?.remove();
+  if (!lastSurah) return;
+  let lastRead = null;
+  try {
+    lastRead = JSON.parse(localStorage.getItem("tazawwud:recentReads") || "[]")[0] || null;
+  } catch {
+    lastRead = null;
+  }
+  const pill = document.createElement("button");
+  pill.type = "button";
+  pill.id = "quran-float-continue";
+  pill.className = "quran-float-continue";
+  pill.innerHTML = `<span class="material-symbols-rounded icon" aria-hidden="true">auto_stories</span><span>Continue Reading</span>`;
+  pill.addEventListener("click", () =>
+    lastRead && Number(lastRead.surah) === Number(lastSurah)
+      ? openSurah(Number(lastSurah), Number(lastRead.ayah))
+      : openSurah(Number(lastSurah))
+  );
+  document.body.append(pill);
 }
 
 /**
@@ -506,6 +536,16 @@ window.tazawwudHandleBack = () => {
 
 function initRouter() {
   // The Page option on the Quran front page: show that one page of the Mushaf.
+  window.addEventListener("tazawwud:open-unit", (event) => {
+    const { type, index } = event.detail || {};
+    if (!type || !Number.isInteger(index)) return;
+    showView("mushaf");
+    history.pushState(null, "", "#quran");
+    const mushafRootEl = document.getElementById("mushaf-root");
+    loadMushafModule()
+      .then(({ openUnitInMushaf }) => openUnitInMushaf(mushafRootEl, type, index))
+      .catch((error) => console.error("[TAZAWWUD] Could not open the unit:", error));
+  });
   window.addEventListener("tazawwud:open-page", (event) => {
     const pageNumber = Number(event.detail);
     if (!pageNumber) return;

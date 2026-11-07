@@ -420,26 +420,49 @@ async function renderBrowsePanel(panel, mode) {
   if (mode === "page") {
     items = metadata.page.map((start, i) => ({ label: `Page ${i + 1}`, start, page: i + 1 }));
   } else if (mode === "juz") {
-    items = metadata.juz.map((start, i) => ({ label: `Juz ${i + 1}`, start }));
+    items = metadata.juz.map((start, i) => ({ label: `Juz ${i + 1}`, start, unit: { type: "juz", index: i } }));
   } else if (mode === "hizb") {
     items = metadata.hizbQuarter.map((start, i) => ({
       label: `Hizb ${Math.floor(i / 4) + 1}${HIZB_QUARTER_MARKS[i % 4]}`,
       start,
+      unit: { type: "hizb", index: i },
     }));
   } else {
-    items = metadata.ruku.map((start, i) => ({ label: `Ruku ${i + 1}`, start }));
+    items = metadata.ruku.map((start, i) => ({ label: `Ruku ${i + 1}`, start, unit: { type: "ruku", index: i } }));
   }
 
   panel.innerHTML = `<ul class="quran-browse-list">${items
-    .map((it) => it.page
-      ? `<li><button type="button" class="quran-browse-item" data-page="${it.page}"><span>${escapeChip(it.label)}</span><span>${escapeChip(detailOf(it.start))}</span></button></li>`
-      : `<li><button type="button" class="quran-browse-item" data-open-surah="${it.start[0]}" data-ayah="${it.start[1]}"><span>${escapeChip(it.label)}</span><span>${escapeChip(detailOf(it.start))}</span></button></li>`)
+    .map((it) => {
+      const body = `<span>${escapeChip(it.label)}</span><span>${escapeChip(detailOf(it.start))}</span>`;
+      if (it.page) return `<li><button type="button" class="quran-browse-item" data-page="${it.page}">${body}</button></li>`;
+      if (it.unit) return `<li><button type="button" class="quran-browse-item" data-unit-type="${it.unit.type}" data-unit-index="${it.unit.index}">${body}</button></li>`;
+      return `<li><button type="button" class="quran-browse-item" data-open-surah="${it.start[0]}" data-ayah="${it.start[1]}">${body}</button></li>`;
+    })
     .join("")}</ul>`;
+}
+
+/** Fills the Last Read row from the saved reads. Called on every visit, so it is never stale. */
+function refreshLastRead(strip) {
+  fetchSurahList()
+    .then((surahs) => {
+      const nameOf = (n) => surahs.find((x) => x.number === n)?.englishName || `Surah ${n}`;
+      const reads = readRecentReads();
+      strip.querySelector("[data-last-read]").innerHTML = reads.length
+        ? reads.map((r) => `<button type="button" class="quran-chip" data-open-surah="${r.surah}" data-ayah="${r.ayah}">${escapeChip(nameOf(r.surah).toUpperCase())} ${r.surah}:${r.ayah}</button>`).join("")
+        : `<p class="quran-home-strip__empty">Nothing read yet.</p>`;
+    })
+    .catch(() => {
+      // The strip still shows Quick Links if the surah names cannot be loaded.
+    });
 }
 
 function ensureQuranHomeStrip(container, onOpenSurah) {
   if (!container || !container.parentElement) return;
-  if (container.parentElement.querySelector(".quran-home-strip")) return;
+  const existing = container.parentElement.querySelector(".quran-home-strip");
+  if (existing) {
+    refreshLastRead(existing);
+    return;
+  }
 
   const strip = document.createElement("section");
   strip.className = "quran-home-strip";
@@ -460,6 +483,13 @@ function ensureQuranHomeStrip(container, onOpenSurah) {
 
   const panel = strip.querySelector("[data-browse-panel]");
   strip.addEventListener("click", (event) => {
+    const unitItem = event.target.closest("[data-unit-type]");
+    if (unitItem) {
+      window.dispatchEvent(new CustomEvent("tazawwud:open-unit", {
+        detail: { type: unitItem.dataset.unitType, index: Number(unitItem.dataset.unitIndex) },
+      }));
+      return;
+    }
     const pageItem = event.target.closest("[data-page]");
     if (pageItem) {
       window.dispatchEvent(new CustomEvent("tazawwud:open-page", { detail: Number(pageItem.dataset.page) }));
@@ -503,17 +533,7 @@ function ensureQuranHomeStrip(container, onOpenSurah) {
   const chosenView = readQuranSettings().view;
   if (chosenView !== "surah") strip.querySelector(`[data-browse="${chosenView}"]`)?.click();
 
-  fetchSurahList()
-    .then((surahs) => {
-      const nameOf = (n) => surahs.find((x) => x.number === n)?.englishName || `Surah ${n}`;
-      const reads = readRecentReads();
-      strip.querySelector("[data-last-read]").innerHTML = reads.length
-        ? reads.map((r) => `<button type="button" class="quran-chip" data-open-surah="${r.surah}" data-ayah="${r.ayah}">${escapeChip(nameOf(r.surah).toUpperCase())} ${r.surah}:${r.ayah}</button>`).join("")
-        : `<p class="quran-home-strip__empty">Nothing read yet.</p>`;
-    })
-    .catch(() => {
-      // The strip still shows Quick Links if the surah names cannot be loaded.
-    });
+  refreshLastRead(strip);
 }
 
 /**

@@ -507,9 +507,33 @@ function renderGradeBadges(grades, gradingProvided = true) {
   `;
 }
 
-function renderHadithCard(hadith) {
+/** The full reference for one hadith: collection, book, book number, and hadith numbers. */
+function hadithReferenceLines(hadith, ctx) {
+  const number = hadith.numberInChapter ?? hadith.hadithnumber;
+  return [
+    `${ctx.collectionName} · Book ${ctx.chapterNumber}: ${ctx.bookName}`,
+    `Hadith ${number} · Global ${hadith.hadithnumber}`,
+  ];
+}
+
+/** The text that is copied or shared for one hadith: Arabic, English, then the full reference. */
+function buildHadithText(hadith, ctx) {
+  const parts = [];
+  if (hadith.arabic) parts.push(hadith.arabic);
+  if (hadith.english) parts.push(hadith.english);
+  parts.push(hadithReferenceLines(hadith, ctx).join("\n"));
+  return parts.join("\n\n");
+}
+
+/** A chapter-list card (ctx given): with its reference and actions. Search results (no ctx): as before. */
+function renderHadithCard(hadith, ctx = null) {
+  const reference = ctx ? hadithReferenceLines(hadith, ctx) : null;
   return `
     <div class="hadith-card" id="hadith-${hadith.hadithnumber}">
+      ${reference ? `<div class="hadith-card__ref">
+        <p class="hadith-card__ref-line">${escapeHtml(reference[0])}</p>
+        <p class="hadith-card__ref-line">${escapeHtml(reference[1])}</p>
+      </div>` : ""}
       <div class="hadith-card__top">
         <span class="hadith-card__number">
           <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">history_edu</span>
@@ -523,12 +547,69 @@ function renderHadithCard(hadith) {
           : `<p class="hadith-card__arabic-unavailable">Arabic text unavailable for this narration.</p>`
       }
       <p class="hadith-card__english">${escapeHtml(hadith.english)}</p>
+      ${ctx ? `<div class="hadith-card__actions">
+        <button type="button" class="hadith-card__btn" data-copy-hadith aria-label="Copy hadith ${escapeHtml(String(hadith.hadithnumber))}">
+          <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">content_copy</span> Copy
+        </button>
+        <button type="button" class="hadith-card__btn" data-share-hadith aria-label="Share hadith ${escapeHtml(String(hadith.hadithnumber))}">
+          <span class="material-symbols-rounded icon icon--sm" aria-hidden="true">share</span> Share
+        </button>
+        <span class="hadith-card__status" aria-live="polite"></span>
+      </div>` : ""}
     </div>
   `;
 }
 
+/** Copies text to the clipboard. Returns true if it worked. */
+async function copyHadithText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const field = document.createElement("textarea");
+    field.value = text;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.append(field);
+    field.select();
+    const copied = document.execCommand("copy");
+    field.remove();
+    return copied;
+  }
+}
+
+/** Wires Copy and Share on every card in the chapter list. */
+function wireHadithCopyShare(container, hadiths, ctx) {
+  hadiths.forEach((hadith) => {
+    const card = container.querySelector(`#hadith-${hadith.hadithnumber}`);
+    if (!card) return;
+    const status = card.querySelector(".hadith-card__status");
+    const say = (message) => {
+      if (status) status.textContent = message;
+    };
+    const text = buildHadithText(hadith, ctx);
+    card.querySelector("[data-copy-hadith]")?.addEventListener("click", async () => {
+      say((await copyHadithText(text)) ? "Copied" : "Could not copy");
+    });
+    card.querySelector("[data-share-hadith]")?.addEventListener("click", async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({ text });
+          say("Shared");
+        } catch (error) {
+          if (error?.name !== "AbortError") say("Could not share");
+        }
+        return;
+      }
+      say((await copyHadithText(text)) ? "Copied (sharing is not available here)" : "Could not copy");
+    });
+  });
+}
+
 function renderHadithList(container, collectionMeta, collectionInfo, chapter) {
   const hadiths = collectionInfo.hadithsByChapter.get(chapter.number) || [];
+  const ctx = { collectionName: collectionMeta.nameEn, bookName: chapter.name, chapterNumber: chapter.number };
 
   container.innerHTML = `
     <div class="hadith-book-header">
@@ -544,7 +625,7 @@ function renderHadithList(container, collectionMeta, collectionInfo, chapter) {
     </div>
 
     <div class="hadith-list">
-      ${hadiths.map(renderHadithCard).join("")}
+      ${hadiths.map((h) => renderHadithCard(h, ctx)).join("")}
     </div>
   `;
 
@@ -553,6 +634,7 @@ function renderHadithList(container, collectionMeta, collectionInfo, chapter) {
   });
 
   wireGradeToggles(container);
+  wireHadithCopyShare(container, hadiths, ctx);
 }
 
 function wireGradeToggles(container) {
@@ -669,7 +751,7 @@ function renderSearchResults(container, query, results, scopeSlug) {
     <div class="hadith-list">
       ${
         results.length
-          ? results.map(renderHadithCard).join("")
+          ? results.map((h) => renderHadithCard(h)).join("")
           : `<p class="hadith-empty-state">No narrations matched "${escapeHtml(query)}" in ${escapeHtml(scopeMeta.nameEn)}. Try another collection or keyword.</p>`
       }
     </div>
